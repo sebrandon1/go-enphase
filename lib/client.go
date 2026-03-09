@@ -29,28 +29,19 @@ type Client struct {
 	HTTPClient   *http.Client
 }
 
-func newHTTPClient() *http.Client {
-	return &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: 10 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout: 10 * time.Second,
-		},
+func newHTTPClientWithTLS(insecure bool) *http.Client {
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
 	}
-}
-
-func newInsecureHTTPClient() *http.Client {
+	if insecure {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+	}
 	return &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: 10 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout: 10 * time.Second,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		},
+		Timeout:   30 * time.Second,
+		Transport: transport,
 	}
 }
 
@@ -63,7 +54,7 @@ func NewClient(apiKey, accessToken string) (*Client, error) {
 	return &Client{
 		APIKey:      apiKey,
 		AccessToken: accessToken,
-		HTTPClient:  newHTTPClient(),
+		HTTPClient:  newHTTPClientWithTLS(false),
 	}, nil
 }
 
@@ -79,7 +70,7 @@ func NewClientWithRefresh(apiKey, accessToken, refreshToken, clientID, clientSec
 		RefreshToken: refreshToken,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		HTTPClient:   newHTTPClient(),
+		HTTPClient:   newHTTPClientWithTLS(false),
 	}, nil
 }
 
@@ -92,7 +83,7 @@ func NewEnvoyClient(envoyIP, envoyToken string) (*Client, error) {
 	return &Client{
 		EnvoyIP:    envoyIP,
 		EnvoyToken: envoyToken,
-		HTTPClient: newInsecureHTTPClient(),
+		HTTPClient: newHTTPClientWithTLS(true),
 	}, nil
 }
 
@@ -138,6 +129,32 @@ func (c *Client) envoyGet(url string, v any) error {
 	}
 
 	c.setEnvoyHeaders(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+	}
+
+	return decodeJSON(resp.Body, v)
+}
+
+func (c *Client) cloudGetWithParams(url string, params map[string]string, v any) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	c.setCloudHeaders(req)
+
+	if len(params) > 0 {
+		addQueryParams(req, params)
+	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

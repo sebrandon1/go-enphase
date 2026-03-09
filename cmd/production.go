@@ -8,8 +8,10 @@ import (
 )
 
 var (
-	startDate string
-	endDate   string
+	energyStartDate      string
+	energyEndDate        string
+	consumptionStartDate string
+	consumptionEndDate   string
 )
 
 var productionCmd = &cobra.Command{
@@ -33,7 +35,7 @@ var energyLifetimeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
 		client := getCloudClient()
-		energy, err := client.GetEnergyLifetime(systemID, startDate, endDate)
+		energy, err := client.GetEnergyLifetime(systemID, energyStartDate, energyEndDate)
 		if err != nil {
 			fmt.Printf("Error getting energy lifetime: %v\n", err)
 			os.Exit(1)
@@ -48,7 +50,7 @@ var consumptionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
 		client := getCloudClient()
-		consumption, err := client.GetConsumptionLifetime(systemID, startDate, endDate)
+		consumption, err := client.GetConsumptionLifetime(systemID, consumptionStartDate, consumptionEndDate)
 		if err != nil {
 			fmt.Printf("Error getting consumption: %v\n", err)
 			os.Exit(1)
@@ -73,11 +75,11 @@ var batteryCmd = &cobra.Command{
 }
 
 func init() {
-	energyLifetimeCmd.Flags().StringVar(&startDate, "start-date", "", "Start date (YYYY-MM-DD)")
-	energyLifetimeCmd.Flags().StringVar(&endDate, "end-date", "", "End date (YYYY-MM-DD)")
+	energyLifetimeCmd.Flags().StringVar(&energyStartDate, "start-date", "", "Start date (YYYY-MM-DD)")
+	energyLifetimeCmd.Flags().StringVar(&energyEndDate, "end-date", "", "End date (YYYY-MM-DD)")
 
-	consumptionCmd.Flags().StringVar(&startDate, "start-date", "", "Start date (YYYY-MM-DD)")
-	consumptionCmd.Flags().StringVar(&endDate, "end-date", "", "End date (YYYY-MM-DD)")
+	consumptionCmd.Flags().StringVar(&consumptionStartDate, "start-date", "", "Start date (YYYY-MM-DD)")
+	consumptionCmd.Flags().StringVar(&consumptionEndDate, "end-date", "", "End date (YYYY-MM-DD)")
 
 	getCmd.AddCommand(productionCmd)
 	getCmd.AddCommand(energyLifetimeCmd)

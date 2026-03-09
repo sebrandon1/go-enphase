@@ -1,48 +1,16 @@
 package lib
 
-import (
-	"fmt"
-	"net/http"
-)
-
 // GetProductionMeterReadings returns production meter readings for a system.
 func (c *Client) GetProductionMeterReadings(systemID string) ([]MeterReading, error) {
-	url := CloudBaseURL + "/api/v4/systems/" + systemID + "/production_meter_readings"
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	c.setCloudHeaders(req)
-
 	var result meterReadingsResponse
-	resp, err := c.HTTPClient.Do(req)
+	err := c.cloudGet(CloudBaseURL+"/api/v4/systems/"+systemID+"/production_meter_readings", &result)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	if err := decodeJSON(resp.Body, &result); err != nil {
-		return nil, err
-	}
-
 	return result.MeterReadings, nil
 }
 
-// GetEnergyLifetime returns lifetime energy production data.
-func (c *Client) GetEnergyLifetime(systemID, startDate, endDate string) (*EnergyLifetime, error) {
-	url := CloudBaseURL + "/api/v4/systems/" + systemID + "/energy_lifetime"
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	c.setCloudHeaders(req)
-
+func dateParams(startDate, endDate string) map[string]string {
 	params := map[string]string{}
 	if startDate != "" {
 		params["start_date"] = startDate
@@ -50,63 +18,33 @@ func (c *Client) GetEnergyLifetime(systemID, startDate, endDate string) (*Energy
 	if endDate != "" {
 		params["end_date"] = endDate
 	}
-	if len(params) > 0 {
-		addQueryParams(req, params)
-	}
+	return params
+}
 
+// GetEnergyLifetime returns lifetime energy production data.
+func (c *Client) GetEnergyLifetime(systemID, startDate, endDate string) (*EnergyLifetime, error) {
 	var result EnergyLifetime
-	resp, err := c.HTTPClient.Do(req)
+	err := c.cloudGetWithParams(
+		CloudBaseURL+"/api/v4/systems/"+systemID+"/energy_lifetime",
+		dateParams(startDate, endDate),
+		&result,
+	)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	if err := decodeJSON(resp.Body, &result); err != nil {
-		return nil, err
-	}
-
 	return &result, nil
 }
 
 // GetConsumptionLifetime returns lifetime energy consumption data.
 func (c *Client) GetConsumptionLifetime(systemID, startDate, endDate string) (*ConsumptionLifetime, error) {
-	url := CloudBaseURL + "/api/v4/systems/" + systemID + "/consumption_lifetime"
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	c.setCloudHeaders(req)
-
-	params := map[string]string{}
-	if startDate != "" {
-		params["start_date"] = startDate
-	}
-	if endDate != "" {
-		params["end_date"] = endDate
-	}
-	if len(params) > 0 {
-		addQueryParams(req, params)
-	}
-
 	var result ConsumptionLifetime
-	resp, err := c.HTTPClient.Do(req)
+	err := c.cloudGetWithParams(
+		CloudBaseURL+"/api/v4/systems/"+systemID+"/consumption_lifetime",
+		dateParams(startDate, endDate),
+		&result,
+	)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	if err := decodeJSON(resp.Body, &result); err != nil {
-		return nil, err
-	}
-
 	return &result, nil
 }

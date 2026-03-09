@@ -44,13 +44,6 @@ var envoyCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "help" {
-			return nil
-		}
-		return nil
-	}
-
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "Enphase API key")
 	rootCmd.PersistentFlags().StringVar(&accessToken, "access-token", "", "OAuth2 access token")
 	rootCmd.PersistentFlags().StringVar(&refreshToken, "refresh-token", "", "OAuth2 refresh token")

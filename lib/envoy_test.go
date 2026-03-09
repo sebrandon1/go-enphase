@@ -34,7 +34,7 @@ func TestGetEnvoyProductionSuccess(t *testing.T) {
 }
 
 func TestGetEnvoyProductionNoIP(t *testing.T) {
-	client := &Client{HTTPClient: newHTTPClient()}
+	client := &Client{HTTPClient: newHTTPClientWithTLS(false)}
 	_, err := client.GetEnvoyProduction()
 	if err == nil {
 		t.Error("Expected error for missing envoy IP, got nil")
@@ -67,7 +67,7 @@ func TestGetEnvoySensorsSuccess(t *testing.T) {
 }
 
 func TestGetEnvoySensorsNoIP(t *testing.T) {
-	client := &Client{HTTPClient: newHTTPClient()}
+	client := &Client{HTTPClient: newHTTPClientWithTLS(false)}
 	_, err := client.GetEnvoySensors()
 	if err == nil {
 		t.Error("Expected error for missing envoy IP, got nil")
