@@ -17,12 +17,10 @@ func (c *Client) RefreshAccessToken() (*TokenInfo, error) {
 	formData := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {c.RefreshToken},
-		"client_id":     {c.ClientID},
-		"client_secret": {c.ClientSecret},
 	}.Encode()
 
 	var token TokenInfo
-	err := c.postForm(CloudBaseURL+"/oauth/token", formData, &token)
+	err := c.postFormWithBasicAuth(CloudBaseURL+"/oauth/token", formData, c.ClientID, c.ClientSecret, &token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
@@ -45,15 +43,13 @@ func (c *Client) ExchangeAuthCode(code, redirectURI string) (*TokenInfo, error) 
 	}
 
 	formData := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {redirectURI},
-		"client_id":     {c.ClientID},
-		"client_secret": {c.ClientSecret},
+		"grant_type":   {"authorization_code"},
+		"code":         {code},
+		"redirect_uri": {redirectURI},
 	}.Encode()
 
 	var token TokenInfo
-	err := c.postForm(CloudBaseURL+"/oauth/token", formData, &token)
+	err := c.postFormWithBasicAuth(CloudBaseURL+"/oauth/token", formData, c.ClientID, c.ClientSecret, &token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange auth code: %w", err)
 	}

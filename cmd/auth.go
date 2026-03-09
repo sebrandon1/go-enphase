@@ -17,6 +17,7 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show token status (no secrets displayed)",
 	Run: func(cmd *cobra.Command, args []string) {
+		loadConfigIfAvailable()
 		status := map[string]any{
 			"api_key_set":       apiKey != "",
 			"access_token_set":  accessToken != "",

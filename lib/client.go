@@ -205,11 +205,22 @@ func (c *Client) post(url string, body any, v any) error {
 }
 
 func (c *Client) postForm(url string, formData string, v any) error {
+	return c.postFormWithAuth(url, formData, "", "", v)
+}
+
+func (c *Client) postFormWithBasicAuth(url, formData, username, password string, v any) error {
+	return c.postFormWithAuth(url, formData, username, password, v)
+}
+
+func (c *Client) postFormWithAuth(url, formData, username, password string, v any) error {
 	req, err := http.NewRequest("POST", url, bytes.NewBufferString(formData))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if username != "" {
+		req.SetBasicAuth(username, password)
+	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
