@@ -18,6 +18,10 @@ var (
 	envoyIP      string
 	envoyToken   string
 	envoySerial  string
+	configFile   string
+
+	configRatePerKWh string
+	loadedConfig     *lib.Config
 
 	cloudClient *lib.Client
 	localClient *lib.Client
@@ -53,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&envoyIP, "envoy-ip", "", "Local Envoy gateway IP address")
 	rootCmd.PersistentFlags().StringVar(&envoyToken, "envoy-token", "", "Local Envoy JWT token")
 	rootCmd.PersistentFlags().StringVar(&envoySerial, "envoy-serial", "", "Envoy serial number")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Config file path (default: ~/.enphase/config)")
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(authCmd)
@@ -103,6 +108,40 @@ func getEnvoyClient() *lib.Client {
 	}
 	localClient = client
 	return client
+}
+
+// loadConfigIfAvailable loads config from file, using values as defaults
+// (CLI flags take precedence).
+func loadConfigIfAvailable() {
+	if loadedConfig != nil {
+		return
+	}
+
+	cfg, err := lib.LoadConfig(configFile)
+	if err != nil {
+		return
+	}
+	loadedConfig = cfg
+
+	if apiKey == "" {
+		apiKey = cfg.APIKey
+	}
+	if accessToken == "" {
+		accessToken = cfg.AccessToken
+	}
+	if refreshToken == "" {
+		refreshToken = cfg.RefreshToken
+	}
+	if clientID == "" {
+		clientID = cfg.ClientID
+	}
+	if clientSecret == "" {
+		clientSecret = cfg.ClientSecret
+	}
+	if systemID == "" {
+		systemID = cfg.SystemID
+	}
+	configRatePerKWh = cfg.RatePerKWh
 }
 
 // Execute executes the root command.
