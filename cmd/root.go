@@ -30,6 +30,9 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "enphase",
 	Short: "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		loadConfigIfAvailable()
+	},
 }
 
 var getCmd = &cobra.Command{
