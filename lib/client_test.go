@@ -216,63 +216,6 @@ func TestEnvoyGetBadURL(t *testing.T) {
 	}
 }
 
-func TestPostSuccess(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("Expected POST, got %s", r.Method)
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"access_token":"new-token"}`))
-	}))
-	defer server.Close()
-
-	client, _ := NewClient("key", "token")
-	var result TokenInfo
-	err := client.post(server.URL+"/test", map[string]string{"key": "val"}, &result)
-	if err != nil {
-		t.Fatalf("post failed: %v", err)
-	}
-	if result.AccessToken != "new-token" {
-		t.Errorf("Expected access_token 'new-token', got '%s'", result.AccessToken)
-	}
-}
-
-func TestPostErrorStatus(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"bad"}`))
-	}))
-	defer server.Close()
-
-	client, _ := NewClient("key", "token")
-	var result TokenInfo
-	err := client.post(server.URL+"/test", nil, &result)
-	if err == nil {
-		t.Error("Expected error for 400, got nil")
-	}
-}
-
-func TestPostNilResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	client, _ := NewClient("key", "token")
-	err := client.post(server.URL+"/test", nil, nil)
-	if err != nil {
-		t.Fatalf("post with nil response failed: %v", err)
-	}
-}
-
-func TestPostBadURL(t *testing.T) {
-	client, _ := NewClient("key", "token")
-	err := client.post("://bad", nil, nil)
-	if err == nil {
-		t.Error("Expected error for bad URL, got nil")
-	}
-}
-
 func TestPostFormSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {

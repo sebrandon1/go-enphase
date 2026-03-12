@@ -17,7 +17,6 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show token status (no secrets displayed)",
 	Run: func(cmd *cobra.Command, args []string) {
-		loadConfigIfAvailable()
 		status := map[string]any{
 			"api_key_set":       apiKey != "",
 			"access_token_set":  accessToken != "",
@@ -33,7 +32,6 @@ var authRefreshCmd = &cobra.Command{
 	Use:   "refresh",
 	Short: "Refresh access token",
 	Run: func(cmd *cobra.Command, args []string) {
-		loadConfigIfAvailable()
 		client := getCloudClientWithRefresh()
 		token, err := client.RefreshAccessToken()
 		if err != nil {
