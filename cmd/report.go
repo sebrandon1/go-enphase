@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
@@ -20,7 +21,6 @@ var reportTodayCmd = &cobra.Command{
 	Use:   "today",
 	Short: "Today's solar production summary (formatted text)",
 	Run: func(cmd *cobra.Command, args []string) {
-		loadConfigIfAvailable()
 		requireSystemID()
 		client := getCloudClient()
 		summary, err := client.GetSystemSummary(systemID)
@@ -38,7 +38,6 @@ var reportCompareCmd = &cobra.Command{
 	Short: "Compare two months of solar production (formatted text)",
 	Long:  "Compare two months. If no months given, compares the two most recent complete months.",
 	Run: func(cmd *cobra.Command, args []string) {
-		loadConfigIfAvailable()
 		requireSystemID()
 		client := getCloudClient()
 
@@ -60,14 +59,25 @@ var reportCompareCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		prodA, err := client.GetEnergyLifetime(systemID, startA, endA)
-		if err != nil {
-			fmt.Printf("Error fetching %s: %v\n", monthA, err)
+		var prodA, prodB *lib.EnergyLifetime
+		var errA, errB error
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			prodA, errA = client.GetEnergyLifetime(systemID, startA, endA)
+		}()
+		go func() {
+			defer wg.Done()
+			prodB, errB = client.GetEnergyLifetime(systemID, startB, endB)
+		}()
+		wg.Wait()
+		if errA != nil {
+			fmt.Printf("Error fetching %s: %v\n", monthA, errA)
 			os.Exit(1)
 		}
-		prodB, err := client.GetEnergyLifetime(systemID, startB, endB)
-		if err != nil {
-			fmt.Printf("Error fetching %s: %v\n", monthB, err)
+		if errB != nil {
+			fmt.Printf("Error fetching %s: %v\n", monthB, errB)
 			os.Exit(1)
 		}
 

@@ -170,40 +170,6 @@ func (c *Client) cloudGetWithParams(url string, params map[string]string, v any)
 	return decodeJSON(resp.Body, v)
 }
 
-func (c *Client) post(url string, body any, v any) error {
-	var bodyReader io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
-		}
-		bodyReader = bytes.NewReader(data)
-	}
-
-	req, err := http.NewRequest("POST", url, bodyReader)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
-	}
-
-	if v != nil {
-		return decodeJSON(resp.Body, v)
-	}
-
-	return nil
-}
-
 func (c *Client) postForm(url string, formData string, v any) error {
 	return c.postFormWithAuth(url, formData, "", "", v)
 }

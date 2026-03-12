@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"time"
 )
@@ -149,13 +148,4 @@ func LastTwoMonths() (twoMonthsAgo, lastMonth string) {
 	last := now.AddDate(0, -1, 0)
 	twoAgo := now.AddDate(0, -2, 0)
 	return twoAgo.Format("2006-01"), last.Format("2006-01")
-}
-
-// SortedProduction returns production values sorted by day (they're already
-// in order from the API, but this ensures correctness).
-func SortedProduction(production []int) []int {
-	sorted := make([]int, len(production))
-	copy(sorted, production)
-	sort.Ints(sorted)
-	return sorted
 }
