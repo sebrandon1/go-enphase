@@ -34,7 +34,7 @@ cmd/                 # CLI commands (cobra)
   system.go          # get systems/summary/devices subcommands
   production.go      # get production/energy-lifetime/consumption subcommands
   envoy.go           # envoy status/sensors subcommands
-  report.go          # report today/compare subcommands
+  report.go          # report today/daily/compare/history subcommands
   helpers.go         # Shared CLI helpers (formatting, output)
   helpers_test.go    # Tests for helpers
   root_test.go       # Tests for root command
@@ -46,7 +46,7 @@ lib/                 # Library (API client, types, business logic)
   battery.go         # Cloud API: battery status
   envoy.go           # Local Envoy: production, sensor readings
   config.go          # Config file loading/saving (~/.enphase/config)
-  report.go          # Report formatting and statistics (daily summary, month comparison)
+  report.go          # Report formatting and statistics (daily summary, daily report, month comparison, history export)
   structs.go         # API response types and data structures
   *_test.go          # Unit tests for each module
 ```

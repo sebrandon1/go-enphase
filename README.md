@@ -80,6 +80,27 @@ go-enphase auth envoy-token --api-key $KEY --access-token $TOKEN \
   --email user@example.com --password mypass --envoy-serial ABC123
 ```
 
+### Report Commands
+
+```bash
+# Today's production summary
+go-enphase report today --system-id 12345
+
+# Daily report: today's live status + last 7 days production vs consumption
+go-enphase report daily --system-id 12345
+
+# Daily report with custom trailing days
+go-enphase report daily --system-id 12345 --days 14
+
+# Compare two months of production
+go-enphase report compare --system-id 12345 2025-01 2025-02
+
+# Export full production/consumption history to JSON
+go-enphase report history --system-id 12345 --output ~/solar/history.json
+```
+
+All report commands support `--rate 0.13` to include dollar estimates (also configurable via `ENPHASE_RATE_PER_KWH` in the config file).
+
 ### Local Envoy Commands
 
 ```bash
