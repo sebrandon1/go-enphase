@@ -27,13 +27,35 @@ var reportTodayCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
 		client := getCloudClient()
-		summary, err := client.GetSystemSummary(systemID)
-		if err != nil {
-			fmt.Printf("Error getting summary: %v\n", err)
+		resolveRate()
+
+		today := time.Now().Format("2006-01-02")
+
+		var summary *lib.SystemSummary
+		var cons *lib.ConsumptionLifetime
+		var errSummary, errCons error
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			summary, errSummary = client.GetSystemSummary(systemID)
+		}()
+		go func() {
+			defer wg.Done()
+			cons, errCons = client.GetConsumptionLifetime(systemID, today, today)
+		}()
+		wg.Wait()
+
+		if errSummary != nil {
+			fmt.Printf("Error getting summary: %v\n", errSummary)
 			os.Exit(1)
 		}
-		resolveRate()
-		fmt.Print(lib.FormatTodaySummary(summary, ratePerKWh))
+		var todayConsWh int
+		if errCons == nil && cons != nil && len(cons.Consumption) > 0 {
+			todayConsWh = cons.Consumption[0]
+		}
+		fmt.Print(lib.FormatTodaySummary(summary, todayConsWh, ratePerKWh))
 	},
 }
 
