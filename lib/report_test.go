@@ -19,7 +19,7 @@ func TestFormatTodaySummary(t *testing.T) {
 		LastReportAt:   1709913600,
 	}
 
-	output := FormatTodaySummary(summary, 0.12)
+	output := FormatTodaySummary(summary, 0, 0.12)
 
 	if !strings.Contains(output, "System 12345") {
 		t.Error("Expected system ID in output")
@@ -44,13 +44,40 @@ func TestFormatTodaySummary(t *testing.T) {
 	}
 }
 
+func TestFormatTodaySummaryWithConsumption(t *testing.T) {
+	summary := &SystemSummary{
+		SystemID:     12345,
+		EnergyToday:  15000,
+		CurrentPower: 3500,
+		Modules:      20,
+	}
+
+	output := FormatTodaySummary(summary, 20000, 0.12)
+
+	if !strings.Contains(output, "Consumption") {
+		t.Error("Expected consumption line in output")
+	}
+	if !strings.Contains(output, "20.00 kWh") {
+		t.Error("Expected consumption kWh in output")
+	}
+	if !strings.Contains(output, "Grid Draw") {
+		t.Error("Expected grid draw line when consuming more than producing")
+	}
+	if !strings.Contains(output, "Solar Offset") {
+		t.Error("Expected solar offset percentage")
+	}
+	if !strings.Contains(output, "75%") {
+		t.Error("Expected 75% solar offset (15/20)")
+	}
+}
+
 func TestFormatTodaySummaryNoRate(t *testing.T) {
 	summary := &SystemSummary{
 		SystemID:    12345,
 		EnergyToday: 15000,
 	}
 
-	output := FormatTodaySummary(summary, 0)
+	output := FormatTodaySummary(summary, 0, 0)
 	if strings.Contains(output, "$") {
 		t.Error("Expected no dollar values when rate is 0")
 	}

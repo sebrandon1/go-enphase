@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// FormatTodaySummary formats a SystemSummary as human-readable text,
-// matching the output of the old enphase-today.sh script.
-func FormatTodaySummary(s *SystemSummary, ratePerKWh float64) string {
+// FormatTodaySummary formats a SystemSummary as human-readable text.
+// todayConsWh is today's consumption in Wh (0 if unavailable).
+func FormatTodaySummary(s *SystemSummary, todayConsWh int, ratePerKWh float64) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "=== Solar Today (System %d) ===\n", s.SystemID)
@@ -21,11 +21,38 @@ func FormatTodaySummary(s *SystemSummary, ratePerKWh float64) string {
 	fmt.Fprintf(&b, "  Modules:         %d\n", s.Modules)
 
 	todayKWh := float64(s.EnergyToday) / 1000.0
-	fmt.Fprintf(&b, "  Energy Today:    %.2f kWh", todayKWh)
+	fmt.Fprintf(&b, "  Production:      %.2f kWh", todayKWh)
 	if ratePerKWh > 0 {
 		fmt.Fprintf(&b, " ($%.2f)", todayKWh*ratePerKWh)
 	}
 	b.WriteString("\n")
+
+	if todayConsWh > 0 {
+		consKWh := float64(todayConsWh) / 1000.0
+		fmt.Fprintf(&b, "  Consumption:     %.2f kWh", consKWh)
+		if ratePerKWh > 0 {
+			fmt.Fprintf(&b, " ($%.2f)", consKWh*ratePerKWh)
+		}
+		b.WriteString("\n")
+
+		netKWh := todayKWh - consKWh
+		gridLabel := "Grid Draw"
+		if netKWh >= 0 {
+			gridLabel = "Grid Export"
+		}
+		absNet := netKWh
+		if absNet < 0 {
+			absNet = -absNet
+		}
+		fmt.Fprintf(&b, "  %s:      %.2f kWh", gridLabel, absNet)
+		if ratePerKWh > 0 {
+			fmt.Fprintf(&b, " ($%.2f)", absNet*ratePerKWh)
+		}
+		b.WriteString("\n")
+
+		offsetPct := (todayKWh / consKWh) * 100.0
+		fmt.Fprintf(&b, "  Solar Offset:    %.0f%%\n", offsetPct)
+	}
 
 	lifetimeKWh := float64(s.EnergyLifetime) / 1000.0
 	fmt.Fprintf(&b, "  Energy Lifetime: %.1f kWh", lifetimeKWh)

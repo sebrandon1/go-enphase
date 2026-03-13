@@ -21,6 +21,9 @@ type Config struct {
 	SystemID     string
 	RatePerKWh   string
 	RedirectURI  string
+	EnvoyIP      string
+	EnvoyToken   string
+	EnvoySerial  string
 }
 
 // DefaultConfigPath returns the default config file path (~/.enphase/config).
@@ -59,6 +62,21 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("error reading config: %w", err)
 	}
 
+	// Support ENVOY_IP / ENVOY_TOKEN / ENVOY_SERIAL without the ENPHASE_ prefix
+	// as well as the prefixed variants for consistency.
+	envoyIP := vars["ENPHASE_ENVOY_IP"]
+	if envoyIP == "" {
+		envoyIP = vars["ENVOY_IP"]
+	}
+	envoyToken := vars["ENPHASE_ENVOY_TOKEN"]
+	if envoyToken == "" {
+		envoyToken = vars["ENVOY_TOKEN"]
+	}
+	envoySerial := vars["ENPHASE_ENVOY_SERIAL"]
+	if envoySerial == "" {
+		envoySerial = vars["ENVOY_SERIAL"]
+	}
+
 	return &Config{
 		Path:         path,
 		APIKey:       vars["ENPHASE_API_KEY"],
@@ -69,6 +87,9 @@ func LoadConfig(path string) (*Config, error) {
 		SystemID:     vars["ENPHASE_SYSTEM_ID"],
 		RatePerKWh:   vars["ENPHASE_RATE_PER_KWH"],
 		RedirectURI:  vars["ENPHASE_REDIRECT_URI"],
+		EnvoyIP:      envoyIP,
+		EnvoyToken:   envoyToken,
+		EnvoySerial:  envoySerial,
 	}, nil
 }
 
