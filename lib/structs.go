@@ -160,3 +160,53 @@ type sensorReadingsResponse struct {
 		Readings []SensorReading `json:"readings"`
 	} `json:"sensors"`
 }
+
+// EnvoySimpleProduction represents the basic production summary from /api/v1/production.
+type EnvoySimpleProduction struct {
+	WattsNow        float64 `json:"wattsNow"`
+	WhToday         float64 `json:"whToday"`
+	WhLastSevenDays float64 `json:"whLastSevenDays"`
+	WhLifetime      float64 `json:"whLifetime"`
+}
+
+// InverterReading represents a single inverter's latest report from
+// /api/v1/production/inverters.
+type InverterReading struct {
+	SerialNumber    string `json:"serialNumber"`
+	LastReportDate  int64  `json:"lastReportDate"`
+	LastReportWatts int    `json:"lastReportWatts"`
+	MaxReportWatts  int    `json:"maxReportWatts"`
+	DevType         int    `json:"devType"`
+}
+
+// MeterConfig represents the configuration of a revenue-grade meter from /ivp/meters.
+type MeterConfig struct {
+	EID             int    `json:"eid"`
+	State           string `json:"state"`
+	MeasurementType string `json:"measurementType"`
+	PhaseMode       string `json:"phaseMode"`
+	PhaseCount      int    `json:"phaseCount"`
+}
+
+// MeterData represents a meter reading snapshot from /ivp/meters/readings.
+type MeterData struct {
+	EID        int     `json:"eid"`
+	Timestamp  int64   `json:"timestamp"`
+	ActPower   float64 `json:"activePower"`
+	ApprntPwr  float64 `json:"apparentPower"`
+	ReactPwr   float64 `json:"reactivePower"`
+	WhDlvdCum  float64 `json:"whDlvdCum"`
+	WhRcvdCum  float64 `json:"whRcvdCum"`
+	RmsCurrent float64 `json:"rmsCurrent"`
+	RmsVoltage float64 `json:"rmsVoltage"`
+	PwrFactor  float64 `json:"pwrFactor"`
+	Frequency  float64 `json:"frequency"`
+}
+
+// StreamMeterEvent represents a single real-time meter event from the SSE stream at
+// /stream/meter.
+type StreamMeterEvent struct {
+	EID       int     `json:"eid"`
+	Timestamp int64   `json:"timestamp"`
+	ActPower  float64 `json:"activePower"`
+}
