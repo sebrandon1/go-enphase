@@ -101,7 +101,28 @@ go-enphase auth refresh --refresh-token $REFRESH --client-id $CID --client-secre
 go-enphase auth envoy-token --email user@example.com --password mypass --envoy-serial ABC123
 ```
 
-### Local Envoy commands
+### Report Commands
+
+```bash
+# Today's production summary
+go-enphase report today --system-id 12345
+
+# Daily report: today's live status + last 7 days production vs consumption
+go-enphase report daily --system-id 12345
+
+# Daily report with custom trailing days
+go-enphase report daily --system-id 12345 --days 14
+
+# Compare two months of production
+go-enphase report compare --system-id 12345 2025-01 2025-02
+
+# Export full production/consumption history to JSON
+go-enphase report history --system-id 12345 --output ~/solar/history.json
+```
+
+All report commands support `--rate 0.13` to include dollar estimates (also configurable via `ENPHASE_RATE_PER_KWH` in the config file).
+
+### Local Envoy Commands
 
 ```bash
 # Get production/consumption
@@ -109,16 +130,6 @@ go-enphase envoy status --envoy-ip 192.168.1.100
 
 # Get sensor readings
 go-enphase envoy sensors --envoy-ip 192.168.1.100 --envoy-token $JWT
-```
-
-### Reports
-
-```bash
-# Today's production summary
-go-enphase report today --system-id 12345
-
-# Month-over-month comparison
-go-enphase report compare --system-id 12345
 ```
 
 ## Library Usage

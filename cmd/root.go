@@ -144,6 +144,15 @@ func loadConfigIfAvailable() {
 	if systemID == "" {
 		systemID = cfg.SystemID
 	}
+	if envoyIP == "" {
+		envoyIP = cfg.EnvoyIP
+	}
+	if envoyToken == "" {
+		envoyToken = cfg.EnvoyToken
+	}
+	if envoySerial == "" {
+		envoySerial = cfg.EnvoySerial
+	}
 	configRatePerKWh = cfg.RatePerKWh
 }
 
