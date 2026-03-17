@@ -1,6 +1,6 @@
 # go-enphase
 
-[![CI](https://github.com/sebrandon1/go-enphase/actions/workflows/ci.yml/badge.svg)](https://github.com/sebrandon1/go-enphase/actions)
+[![CI](https://github.com/sebrandon1/go-enphase/actions/workflows/pre-main.yaml/badge.svg)](https://github.com/sebrandon1/go-enphase/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sebrandon1/go-enphase.svg)](https://pkg.go.dev/github.com/sebrandon1/go-enphase)
 
 Go CLI and library for the Enphase cloud API (v4) and local Envoy gateway.
