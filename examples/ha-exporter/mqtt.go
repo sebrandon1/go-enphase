@@ -58,7 +58,7 @@ func (p *MQTTPublisher) PublishDiscovery() {
 	}
 
 	for _, s := range sensors {
-		topic := fmt.Sprintf("%s/sensor/solar_%s/config", p.prefix, p.serial)
+		topic := fmt.Sprintf("%s/sensor/solar_%s_%s/config", p.prefix, p.serial, s.field)
 		payload := fmt.Sprintf(haDiscoveryTemplate,
 			s.name, p.prefix, p.serial, s.unit, s.field,
 			p.serial, s.field, p.serial,
