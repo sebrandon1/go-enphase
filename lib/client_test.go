@@ -1,9 +1,11 @@
 package lib
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestNewClient(t *testing.T) {
@@ -71,6 +73,44 @@ func TestNewEnvoyClientEmptyIP(t *testing.T) {
 	_, err := NewEnvoyClient("", "token")
 	if err == nil {
 		t.Error("Expected error for empty envoy IP, got nil")
+	}
+}
+
+func TestNewClientWithOptions(t *testing.T) {
+	client, err := NewClientWithOptions("key", "token",
+		WithTimeout(5*time.Second),
+		WithInsecureSkipVerify(true),
+	)
+	if err != nil {
+		t.Fatalf("NewClientWithOptions failed: %v", err)
+	}
+	if client.HTTPClient.Timeout != 5*time.Second {
+		t.Errorf("Expected 5s timeout, got %v", client.HTTPClient.Timeout)
+	}
+	inner := innerTransport(client.HTTPClient.Transport)
+	if inner == nil {
+		t.Fatal("Expected inner transport, got nil")
+	}
+	if !inner.TLSClientConfig.InsecureSkipVerify {
+		t.Error("Expected InsecureSkipVerify to be true")
+	}
+}
+
+func TestNewClientWithOptionsEmptyKey(t *testing.T) {
+	_, err := NewClientWithOptions("", "token")
+	if err == nil {
+		t.Error("Expected error for empty API key, got nil")
+	}
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	custom := &http.Client{Timeout: 42 * time.Second}
+	client, err := NewClientWithOptions("key", "token", WithHTTPClient(custom))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if client.HTTPClient != custom {
+		t.Error("Expected custom HTTP client to be set")
 	}
 }
 
@@ -292,5 +332,77 @@ func TestAddQueryParamsEmpty(t *testing.T) {
 
 	if req.URL.RawQuery != "" {
 		t.Errorf("Expected no query params, got '%s'", req.URL.RawQuery)
+	}
+}
+
+// TestRetryTransport verifies the retry transport retries on 5xx and eventually succeeds.
+func TestRetryTransport(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts < 3 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"system_id":1}`))
+	}))
+	defer server.Close()
+
+	client, _ := NewClient("key", "token")
+	var result System
+	err := client.cloudGet(server.URL+"/test", &result)
+	if err != nil {
+		t.Fatalf("Expected success after retries, got: %v", err)
+	}
+	if attempts != 3 {
+		t.Errorf("Expected 3 attempts, got %d", attempts)
+	}
+}
+
+// TestRetryNoRetryOn4xx verifies 4xx responses are not retried.
+func TestRetryNoRetryOn4xx(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("unauthorized"))
+	}))
+	defer server.Close()
+
+	client, _ := NewClient("key", "token")
+	var result System
+	err := client.cloudGet(server.URL+"/test", &result)
+	if err == nil {
+		t.Error("Expected error for 401, got nil")
+	}
+	if calls != 1 {
+		t.Errorf("Expected 1 call (no retries for 4xx), got %d", calls)
+	}
+}
+
+// TestRetryContextCancel verifies the retry backoff is interrupted when the context
+// is canceled.
+func TestRetryContextCancel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	client, _ := NewClient("key", "token")
+	var result System
+	start := time.Now()
+	err := client.cloudGetCtx(ctx, server.URL+"/test", &result)
+	elapsed := time.Since(start)
+
+	// Backoff delay is 500ms; context timeout is 50ms, so we must return well before 500ms.
+	if elapsed >= 500*time.Millisecond {
+		t.Errorf("Expected quick return on context cancel, took %v", elapsed)
+	}
+	if err == nil {
+		t.Error("Expected error, got nil")
 	}
 }

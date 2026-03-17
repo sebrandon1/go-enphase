@@ -2,12 +2,16 @@ package lib
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -16,6 +20,50 @@ var (
 	EnlightenURL = "https://enlighten.enphaseenergy.com"
 	EntrezURL    = "https://entrez.enphaseenergy.com"
 )
+
+// ClientOption configures a Client.
+type ClientOption func(*Client)
+
+// WithTimeout sets the HTTP client request timeout.
+func WithTimeout(d time.Duration) ClientOption {
+	return func(c *Client) {
+		c.HTTPClient.Timeout = d
+	}
+}
+
+// WithHTTPClient replaces the underlying HTTP client.
+func WithHTTPClient(hc *http.Client) ClientOption {
+	return func(c *Client) {
+		c.HTTPClient = hc
+	}
+}
+
+// WithInsecureSkipVerify controls TLS certificate verification on the underlying transport.
+func WithInsecureSkipVerify(skip bool) ClientOption {
+	return func(c *Client) {
+		inner := innerTransport(c.HTTPClient.Transport)
+		if inner == nil {
+			return
+		}
+		if inner.TLSClientConfig == nil {
+			inner.TLSClientConfig = &tls.Config{} //nolint:gosec
+		}
+		inner.TLSClientConfig.InsecureSkipVerify = skip //nolint:gosec
+	}
+}
+
+// innerTransport extracts the *http.Transport from a (possibly wrapped) RoundTripper.
+func innerTransport(rt http.RoundTripper) *http.Transport {
+	switch t := rt.(type) {
+	case *retryTransport:
+		if inner, ok := t.inner.(*http.Transport); ok {
+			return inner
+		}
+	case *http.Transport:
+		return t
+	}
+	return nil
+}
 
 // Client provides access to Enphase cloud and local Envoy APIs.
 type Client struct {
@@ -27,6 +75,9 @@ type Client struct {
 	EnvoyIP      string
 	EnvoyToken   string
 	HTTPClient   *http.Client
+
+	envoyTokenExpiry time.Time
+	envoyTokenMu     sync.Mutex
 }
 
 func newHTTPClientWithTLS(insecure bool) *http.Client {
@@ -40,8 +91,12 @@ func newHTTPClientWithTLS(insecure bool) *http.Client {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
 	return &http.Client{
-		Timeout:   30 * time.Second,
-		Transport: transport,
+		Timeout: 30 * time.Second,
+		Transport: &retryTransport{
+			inner:     transport,
+			maxTries:  3,
+			baseDelay: 500 * time.Millisecond,
+		},
 	}
 }
 
@@ -87,6 +142,23 @@ func NewEnvoyClient(envoyIP, envoyToken string) (*Client, error) {
 	}, nil
 }
 
+// NewClientWithOptions creates a cloud API client with functional options applied.
+func NewClientWithOptions(apiKey, accessToken string, opts ...ClientOption) (*Client, error) {
+	if apiKey == "" || accessToken == "" {
+		return nil, fmt.Errorf("api key and access token are required")
+	}
+
+	c := &Client{
+		APIKey:      apiKey,
+		AccessToken: accessToken,
+		HTTPClient:  newHTTPClientWithTLS(false),
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, nil
+}
+
 func (c *Client) setCloudHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 	req.Header.Set("key", c.APIKey)
@@ -100,56 +172,65 @@ func (c *Client) setEnvoyHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
 }
 
-func (c *Client) cloudGet(url string, v any) error {
-	req, err := http.NewRequest("GET", url, nil)
+// drainAndClose drains and closes a response body, enabling HTTP keep-alive reuse.
+func drainAndClose(body io.ReadCloser) {
+	_, _ = io.Copy(io.Discard, body)
+	body.Close()
+}
+
+func (c *Client) cloudGetCtx(ctx context.Context, url string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-
 	c.setCloudHeaders(req)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
 	}
-
 	return decodeJSON(resp.Body, v)
 }
 
-func (c *Client) envoyGet(url string, v any) error {
-	req, err := http.NewRequest("GET", url, nil)
+func (c *Client) cloudGet(url string, v any) error {
+	return c.cloudGetCtx(context.Background(), url, v)
+}
+
+func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-
 	c.setEnvoyHeaders(req)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
 	}
-
 	return decodeJSON(resp.Body, v)
 }
 
-func (c *Client) cloudGetWithParams(url string, params map[string]string, v any) error {
-	req, err := http.NewRequest("GET", url, nil)
+func (c *Client) envoyGet(url string, v any) error {
+	return c.envoyGetCtx(context.Background(), url, v)
+}
+
+func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params map[string]string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-
 	c.setCloudHeaders(req)
 
 	if len(params) > 0 {
@@ -160,13 +241,12 @@ func (c *Client) cloudGetWithParams(url string, params map[string]string, v any)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
 	}
-
 	return decodeJSON(resp.Body, v)
 }
 
@@ -174,12 +254,8 @@ func (c *Client) postForm(url string, formData string, v any) error {
 	return c.postFormWithAuth(url, formData, "", "", v)
 }
 
-func (c *Client) postFormWithBasicAuth(url, formData, username, password string, v any) error {
-	return c.postFormWithAuth(url, formData, username, password, v)
-}
-
-func (c *Client) postFormWithAuth(url, formData, username, password string, v any) error {
-	req, err := http.NewRequest("POST", url, bytes.NewBufferString(formData))
+func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, username, password string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(formData))
 	if err != nil {
 		return err
 	}
@@ -192,7 +268,7 @@ func (c *Client) postFormWithAuth(url, formData, username, password string, v an
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -202,8 +278,61 @@ func (c *Client) postFormWithAuth(url, formData, username, password string, v an
 	if v != nil {
 		return decodeJSON(resp.Body, v)
 	}
-
 	return nil
+}
+
+func (c *Client) postFormWithAuth(url, formData, username, password string, v any) error {
+	return c.postFormWithAuthCtx(context.Background(), url, formData, username, password, v)
+}
+
+// EnsureEnvoyToken ensures a valid Envoy JWT is set on the client, refreshing it if
+// it is missing or within 5 minutes of expiry. It is safe for concurrent use.
+func (c *Client) EnsureEnvoyToken(ctx context.Context, email, password, serial string) error {
+	c.envoyTokenMu.Lock()
+	defer c.envoyTokenMu.Unlock()
+
+	if c.EnvoyToken != "" && time.Now().Before(c.envoyTokenExpiry.Add(-5*time.Minute)) {
+		return nil
+	}
+
+	token, err := c.GetEnvoyTokenCtx(ctx, email, password, serial)
+	if err != nil {
+		return err
+	}
+
+	expiry, err := parseJWTExpiry(token)
+	if err != nil {
+		expiry = time.Now().Add(time.Hour)
+	}
+
+	c.EnvoyToken = token
+	c.envoyTokenExpiry = expiry
+	return nil
+}
+
+// parseJWTExpiry extracts the exp claim from a JWT without external dependencies.
+func parseJWTExpiry(token string) (time.Time, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid JWT format")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+	if claims.Exp == 0 {
+		return time.Time{}, fmt.Errorf("JWT has no exp claim")
+	}
+
+	return time.Unix(claims.Exp, 0), nil
 }
 
 func decodeJSON(r io.Reader, v any) error {

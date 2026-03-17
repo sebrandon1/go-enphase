@@ -63,3 +63,33 @@ func TestGetBatteryStatusBadURL(t *testing.T) {
 		t.Error("Expected error for bad URL, got nil")
 	}
 }
+
+func TestGetBatteryStatusConnectionRefused(t *testing.T) {
+	originalURL := CloudBaseURL
+	CloudBaseURL = "http://localhost:1"
+	defer func() { CloudBaseURL = originalURL }()
+
+	client, _ := NewClient("key", "token")
+	_, err := client.GetBatteryStatus("123")
+	if err == nil {
+		t.Error("Expected error for connection refused, got nil")
+	}
+}
+
+func TestGetBatteryStatusInvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`not valid json`))
+	}))
+	defer server.Close()
+
+	originalURL := CloudBaseURL
+	CloudBaseURL = server.URL
+	defer func() { CloudBaseURL = originalURL }()
+
+	client, _ := NewClient("key", "token")
+	_, err := client.GetBatteryStatus("123")
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
