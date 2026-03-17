@@ -63,9 +63,11 @@ func main() {
 	}
 
 	// Collector goroutine.
-	go func() {
-		col.Run(ctx, pollInterval)
-		if mqttPub != nil {
+	go col.Run(ctx, pollInterval)
+
+	// MQTT state publisher goroutine.
+	if mqttPub != nil {
+		go func() {
 			ticker := time.NewTicker(pollInterval)
 			defer ticker.Stop()
 			for {
@@ -76,8 +78,8 @@ func main() {
 					return
 				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// Metrics HTTP server.
 	mux := http.NewServeMux()
