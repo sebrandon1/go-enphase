@@ -16,6 +16,7 @@ Go 1.24 (specified in `go.mod`)
 
 ```bash
 make build    # Build binary (outputs ./go-enphase)
+make install  # Install to $GOPATH/bin or $HOME/go/bin
 make test     # Run tests with verbose output
 make lint     # Run golangci-lint
 make vet      # Run go vet
@@ -23,6 +24,12 @@ make clean    # Remove built binary
 ```
 
 Always run `make lint` before committing and fix any issues.
+
+Run a specific test:
+```bash
+go test -v ./lib -run TestRefreshAccessToken
+go test -v ./cmd -run TestRootCommand
+```
 
 ## Project Structure
 
@@ -59,6 +66,18 @@ Key environment variables:
 - `ENPHASE_API_KEY` - Enphase Developer API key
 - `ENPHASE_ACCESS_TOKEN` - OAuth2 access token
 - `ENPHASE_ENVOY_IP` - Local Envoy gateway IP address
+
+## ha-exporter (examples/)
+
+Standalone binary that polls Enphase APIs and exports metrics to Prometheus and Home Assistant via MQTT.
+
+```bash
+cd examples/ha-exporter
+go build .
+./ha-exporter --config config.json
+```
+
+See `examples/ha-exporter/README.md` for full configuration and MQTT details.
 
 ## CI
 

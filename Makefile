@@ -15,4 +15,7 @@ test:
 clean:
 	rm -f $(APP_NAME)
 
-.PHONY: vet build lint test clean
+install:
+	go install ./...
+
+.PHONY: vet build lint test clean install

@@ -16,7 +16,8 @@ Or build from source:
 ```bash
 git clone https://github.com/sebrandon1/go-enphase.git
 cd go-enphase
-make build
+make build      # Build binary to ./go-enphase
+make install    # Install to $GOPATH/bin or $HOME/go/bin
 ```
 
 ## Configuration
