@@ -8,6 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is set at build time via ldflags.
+var Version = "dev"
+
 var (
 	apiKey       string
 	accessToken  string
@@ -28,8 +31,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "enphase",
-	Short: "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
+	Use:     "enphase",
+	Short:   "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
+	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		loadConfigIfAvailable()
 	},
@@ -65,13 +69,32 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(envoyCmd)
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print the version number",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("enphase version", Version)
+		},
+	})
 }
 
 func requireSystemID() {
-	if systemID == "" {
-		fmt.Println("Error: --system-id is required")
+	if systemID != "" {
+		return
+	}
+
+	client := getCloudClient()
+	systems, err := client.ListSystems()
+	if err != nil {
+		fmt.Printf("Error: --system-id not provided and failed to list systems: %v\n", err)
 		os.Exit(1)
 	}
+	if len(systems) == 0 {
+		fmt.Println("Error: --system-id not provided and no systems found in account")
+		os.Exit(1)
+	}
+
+	systemID = fmt.Sprintf("%d", systems[0].SystemID)
 }
 
 func getCloudClient() *lib.Client {
