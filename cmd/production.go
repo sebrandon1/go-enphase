@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,11 @@ var productionCmd = &cobra.Command{
 			fmt.Printf("Error getting production: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(readings)
+		if isJSONOutput() {
+			printJSON(readings)
+			return
+		}
+		fmt.Print(lib.FormatMeterReadings(readings))
 	},
 }
 
@@ -40,7 +45,11 @@ var energyLifetimeCmd = &cobra.Command{
 			fmt.Printf("Error getting energy lifetime: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(energy)
+		if isJSONOutput() {
+			printJSON(energy)
+			return
+		}
+		fmt.Print(lib.FormatEnergyLifetime(energy))
 	},
 }
 
@@ -55,7 +64,11 @@ var consumptionCmd = &cobra.Command{
 			fmt.Printf("Error getting consumption: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(consumption)
+		if isJSONOutput() {
+			printJSON(consumption)
+			return
+		}
+		fmt.Print(lib.FormatConsumptionLifetime(consumption))
 	},
 }
 
@@ -70,7 +83,11 @@ var batteryCmd = &cobra.Command{
 			fmt.Printf("Error getting battery status: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(battery)
+		if isJSONOutput() {
+			printJSON(battery)
+			return
+		}
+		fmt.Print(lib.FormatBatteryStatus(battery))
 	},
 }
 
