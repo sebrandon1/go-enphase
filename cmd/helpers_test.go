@@ -7,6 +7,32 @@ import (
 	"testing"
 )
 
+func TestIsJSONOutput(t *testing.T) {
+	original := outputFormat
+	defer func() { outputFormat = original }()
+
+	outputFormat = "json"
+	if !isJSONOutput() {
+		t.Error("Expected isJSONOutput() to return true when outputFormat is 'json'")
+	}
+
+	outputFormat = "text"
+	if isJSONOutput() {
+		t.Error("Expected isJSONOutput() to return false when outputFormat is 'text'")
+	}
+
+	outputFormat = ""
+	if isJSONOutput() {
+		t.Error("Expected isJSONOutput() to return false when outputFormat is empty")
+	}
+}
+
+func TestOutputJSONConstant(t *testing.T) {
+	if outputJSON != "json" {
+		t.Errorf("Expected outputJSON to be 'json', got '%s'", outputJSON)
+	}
+}
+
 func TestPrintJSON(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
@@ -95,6 +121,40 @@ func TestPrintJSONWithNil(t *testing.T) {
 
 	if !strings.Contains(output, "null") {
 		t.Errorf("Expected null for nil input, got: %s", output)
+	}
+}
+
+func TestOutputFlagWiringOnCommandGroups(t *testing.T) {
+	original := outputFormat
+	defer func() { outputFormat = original }()
+
+	tests := []struct {
+		name     string
+		args     []string
+		want     string
+		wantJSON bool
+	}{
+		{"default is text", []string{"get", "--help"}, "text", false},
+		{"json via get group", []string{"get", "-o", "json", "--help"}, "json", true},
+		{"json via auth group", []string{"auth", "-o", "json", "--help"}, "json", true},
+		{"json via envoy group", []string{"envoy", "-o", "json", "--help"}, "json", true},
+		{"json via report group", []string{"report", "-o", "json", "--help"}, "json", true},
+		{"text explicit via get", []string{"get", "-o", "text", "--help"}, "text", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			outputFormat = "text" // reset before each
+			rootCmd.SetArgs(tt.args)
+			_ = rootCmd.Execute()
+
+			if outputFormat != tt.want {
+				t.Errorf("Expected outputFormat=%q, got %q", tt.want, outputFormat)
+			}
+			if isJSONOutput() != tt.wantJSON {
+				t.Errorf("Expected isJSONOutput()=%v, got %v", tt.wantJSON, isJSONOutput())
+			}
+		})
 	}
 }
 
