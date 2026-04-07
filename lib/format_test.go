@@ -254,3 +254,161 @@ func TestFormatBatteryStatus(t *testing.T) {
 		t.Error("Expected consumed lifetime")
 	}
 }
+
+func TestFormatAuthStatus(t *testing.T) {
+	out := FormatAuthStatus(true, true, false, false, true)
+
+	if !strings.Contains(out, "Auth Status") {
+		t.Error("Expected header")
+	}
+	if !strings.Contains(out, "API Key:        set") {
+		t.Error("Expected API key set")
+	}
+	if !strings.Contains(out, "Access Token:   set") {
+		t.Error("Expected access token set")
+	}
+	if !strings.Contains(out, "Refresh Token:  not set") {
+		t.Error("Expected refresh token not set")
+	}
+	if !strings.Contains(out, "Client ID:      not set") {
+		t.Error("Expected client ID not set")
+	}
+	if !strings.Contains(out, "Client Secret:  set") {
+		t.Error("Expected client secret set")
+	}
+}
+
+func TestFormatAuthStatusAllUnset(t *testing.T) {
+	out := FormatAuthStatus(false, false, false, false, false)
+
+	for _, label := range []string{"API Key", "Access Token", "Refresh Token", "Client ID", "Client Secret"} {
+		if !strings.Contains(out, label) {
+			t.Errorf("Expected label %q", label)
+		}
+	}
+	if strings.Count(out, "not set") != 5 {
+		t.Error("Expected all 5 credentials to be 'not set'")
+	}
+}
+
+func TestFormatTokenInfo(t *testing.T) {
+	token := &TokenInfo{
+		TokenType:    "Bearer",
+		ExpiresIn:    86400,
+		AccessToken:  "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.abcdefg",
+		RefreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4.hijklmn",
+	}
+
+	out := FormatTokenInfo(token)
+
+	if !strings.Contains(out, "Token Refreshed") {
+		t.Error("Expected header")
+	}
+	if !strings.Contains(out, "Bearer") {
+		t.Error("Expected token type")
+	}
+	if !strings.Contains(out, "86400 seconds") {
+		t.Error("Expected expiry")
+	}
+	// Tokens should be truncated
+	if !strings.Contains(out, "...") {
+		t.Error("Expected truncated tokens")
+	}
+	// Full token should NOT appear
+	if strings.Contains(out, "abcdefg") {
+		t.Error("Token should be truncated, not shown in full")
+	}
+}
+
+func TestFormatTokenInfoShortToken(t *testing.T) {
+	token := &TokenInfo{
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		AccessToken:  "short",
+		RefreshToken: "also-short",
+	}
+
+	out := FormatTokenInfo(token)
+
+	if !strings.Contains(out, "short") {
+		t.Error("Short token should appear in full")
+	}
+	if strings.Contains(out, "...") {
+		t.Error("Short tokens should not be truncated")
+	}
+}
+
+func TestFormatEnvoyProduction(t *testing.T) {
+	p := &EnvoyProduction{
+		Production: []EnvoyProductionEntry{
+			{Type: "inverters", ActiveCount: 20, WNow: 3500, WhToday: 15000, WhLastSevenDays: 105000, WhLifetime: 5000000},
+		},
+		Consumption: []EnvoyConsumptionEntry{
+			{Type: "total-consumption", ActiveCount: 1, WNow: 2100, WhToday: 45000, WhLifetime: 120000000},
+		},
+	}
+
+	out := FormatEnvoyProduction(p)
+
+	if !strings.Contains(out, "Envoy Status") {
+		t.Error("Expected header")
+	}
+	if !strings.Contains(out, "Production:") {
+		t.Error("Expected production section")
+	}
+	if !strings.Contains(out, "inverters") {
+		t.Error("Expected inverters type")
+	}
+	if !strings.Contains(out, "3500 W") {
+		t.Error("Expected power now")
+	}
+	if !strings.Contains(out, "Consumption:") {
+		t.Error("Expected consumption section")
+	}
+	if !strings.Contains(out, "total-consumption") {
+		t.Error("Expected consumption type")
+	}
+}
+
+func TestFormatEnvoyProductionEmpty(t *testing.T) {
+	p := &EnvoyProduction{}
+
+	out := FormatEnvoyProduction(p)
+
+	if !strings.Contains(out, "Envoy Status") {
+		t.Error("Expected header")
+	}
+	if strings.Contains(out, "Production:") {
+		t.Error("Should not have production section when empty")
+	}
+}
+
+func TestFormatSensorReadings(t *testing.T) {
+	readings := []SensorReading{
+		{MeasurementType: "production", ActivePower: 3500, RmsVoltage: 240.5, RmsCurrent: 14.6, PowerFactor: 0.99, Frequency: 60.0},
+		{MeasurementType: "net-consumption", ActivePower: -1400, RmsVoltage: 240.3, RmsCurrent: 5.8, PowerFactor: 0.98, Frequency: 60.0},
+	}
+
+	out := FormatSensorReadings(readings)
+
+	if !strings.Contains(out, "Sensor Readings (2)") {
+		t.Error("Expected count in header")
+	}
+	if !strings.Contains(out, "production") {
+		t.Error("Expected production type")
+	}
+	if !strings.Contains(out, "net-consumption") {
+		t.Error("Expected net-consumption type")
+	}
+	if !strings.Contains(out, "240.5") {
+		t.Error("Expected voltage")
+	}
+}
+
+func TestFormatSensorReadingsEmpty(t *testing.T) {
+	out := FormatSensorReadings(nil)
+
+	if !strings.Contains(out, "No readings found") {
+		t.Error("Expected empty message")
+	}
+}

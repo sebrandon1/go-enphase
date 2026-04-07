@@ -200,3 +200,95 @@ func FormatBatteryStatus(b2 *BatteryStatus) string {
 
 	return b.String()
 }
+
+// FormatAuthStatus formats authentication credential status as human-readable text.
+func FormatAuthStatus(apiKeySet, accessTokenSet, refreshTokenSet, clientIDSet, clientSecretSet bool) string {
+	var b strings.Builder
+
+	b.WriteString("=== Auth Status ===\n\n")
+
+	setStr := func(set bool) string {
+		if set {
+			return "set"
+		}
+		return "not set"
+	}
+
+	fmt.Fprintf(&b, "  API Key:        %s\n", setStr(apiKeySet))
+	fmt.Fprintf(&b, "  Access Token:   %s\n", setStr(accessTokenSet))
+	fmt.Fprintf(&b, "  Refresh Token:  %s\n", setStr(refreshTokenSet))
+	fmt.Fprintf(&b, "  Client ID:      %s\n", setStr(clientIDSet))
+	fmt.Fprintf(&b, "  Client Secret:  %s\n", setStr(clientSecretSet))
+
+	return b.String()
+}
+
+// FormatTokenInfo formats refreshed token information as human-readable text.
+func FormatTokenInfo(t *TokenInfo) string {
+	var b strings.Builder
+
+	b.WriteString("=== Token Refreshed ===\n\n")
+	fmt.Fprintf(&b, "  Token Type:    %s\n", t.TokenType)
+	fmt.Fprintf(&b, "  Expires In:    %d seconds\n", t.ExpiresIn)
+
+	truncate := func(s string) string {
+		if len(s) > 20 {
+			return s[:20] + "..."
+		}
+		return s
+	}
+
+	fmt.Fprintf(&b, "  Access Token:  %s\n", truncate(t.AccessToken))
+	fmt.Fprintf(&b, "  Refresh Token: %s\n", truncate(t.RefreshToken))
+
+	return b.String()
+}
+
+// FormatEnvoyProduction formats local Envoy production/consumption data as a human-readable table.
+func FormatEnvoyProduction(p *EnvoyProduction) string {
+	var b strings.Builder
+
+	b.WriteString("=== Envoy Status ===\n")
+
+	if len(p.Production) > 0 {
+		b.WriteString("\n  Production:\n")
+		fmt.Fprintf(&b, "  %-14s %6s %10s %10s %12s %14s\n", "TYPE", "ACTIVE", "POWER NOW", "TODAY", "7-DAY", "LIFETIME")
+		for _, e := range p.Production {
+			fmt.Fprintf(&b, "  %-14s %6d %8.0f W %7.1f kWh %9.1f kWh %11.1f kWh\n",
+				e.Type, e.ActiveCount, e.WNow,
+				e.WhToday/1000.0, e.WhLastSevenDays/1000.0, e.WhLifetime/1000.0)
+		}
+	}
+
+	if len(p.Consumption) > 0 {
+		b.WriteString("\n  Consumption:\n")
+		fmt.Fprintf(&b, "  %-22s %6s %10s %10s %14s\n", "TYPE", "ACTIVE", "POWER NOW", "TODAY", "LIFETIME")
+		for _, e := range p.Consumption {
+			fmt.Fprintf(&b, "  %-22s %6d %8.0f W %7.1f kWh %11.1f kWh\n",
+				e.Type, e.ActiveCount, e.WNow,
+				e.WhToday/1000.0, e.WhLifetime/1000.0)
+		}
+	}
+
+	return b.String()
+}
+
+// FormatSensorReadings formats Envoy sensor readings as a human-readable table.
+func FormatSensorReadings(readings []SensorReading) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Sensor Readings (%d) ===\n\n", len(readings))
+
+	if len(readings) == 0 {
+		b.WriteString("  No readings found.\n")
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %-22s %10s %10s %10s %8s %8s\n", "TYPE", "POWER (W)", "VOLTAGE", "CURRENT", "PF", "FREQ")
+	for _, r := range readings {
+		fmt.Fprintf(&b, "  %-22s %10.1f %8.1f V %8.1f A %8.2f %6.1f Hz\n",
+			r.MeasurementType, r.ActivePower, r.RmsVoltage, r.RmsCurrent, r.PowerFactor, r.Frequency)
+	}
+
+	return b.String()
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -17,14 +18,18 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show token status (no secrets displayed)",
 	Run: func(cmd *cobra.Command, args []string) {
-		status := map[string]any{
-			"api_key_set":       apiKey != "",
-			"access_token_set":  accessToken != "",
-			"refresh_token_set": refreshToken != "",
-			"client_id_set":     clientID != "",
-			"client_secret_set": clientSecret != "",
+		if isJSONOutput() {
+			status := map[string]any{
+				"api_key_set":       apiKey != "",
+				"access_token_set":  accessToken != "",
+				"refresh_token_set": refreshToken != "",
+				"client_id_set":     clientID != "",
+				"client_secret_set": clientSecret != "",
+			}
+			printJSON(status)
+			return
 		}
-		printJSON(status)
+		fmt.Print(lib.FormatAuthStatus(apiKey != "", accessToken != "", refreshToken != "", clientID != "", clientSecret != ""))
 	},
 }
 
@@ -44,8 +49,10 @@ var authRefreshCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			fmt.Println("Token refreshed and saved.")
-		} else {
+		} else if isJSONOutput() {
 			printJSON(token)
+		} else {
+			fmt.Print(lib.FormatTokenInfo(token))
 		}
 	},
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,11 @@ var envoyStatusCmd = &cobra.Command{
 			fmt.Printf("Error getting envoy status: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(production)
+		if isJSONOutput() {
+			printJSON(production)
+			return
+		}
+		fmt.Print(lib.FormatEnvoyProduction(production))
 	},
 }
 
@@ -31,7 +36,11 @@ var envoySensorsCmd = &cobra.Command{
 			fmt.Printf("Error getting sensors: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(sensors)
+		if isJSONOutput() {
+			printJSON(sensors)
+			return
+		}
+		fmt.Print(lib.FormatSensorReadings(sensors))
 	},
 }
 
