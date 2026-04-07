@@ -101,26 +101,24 @@ func getCloudClient() *lib.Client {
 	if cloudClient != nil {
 		return cloudClient
 	}
-	client, err := lib.NewClient(apiKey, accessToken)
+	client, err := lib.NewClientWithRefresh(apiKey, accessToken, refreshToken, clientID, clientSecret)
 	if err != nil {
 		fmt.Printf("Error creating client: %v\n", err)
 		os.Exit(1)
+	}
+	client.OnTokenRefresh = func(at, rt string) {
+		accessToken = at
+		refreshToken = rt
+		if loadedConfig != nil {
+			_ = loadedConfig.SaveTokens(at, rt)
+		}
 	}
 	cloudClient = client
 	return client
 }
 
 func getCloudClientWithRefresh() *lib.Client {
-	if cloudClient != nil {
-		return cloudClient
-	}
-	client, err := lib.NewClientWithRefresh(apiKey, accessToken, refreshToken, clientID, clientSecret)
-	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
-		os.Exit(1)
-	}
-	cloudClient = client
-	return client
+	return getCloudClient()
 }
 
 func getEnvoyClient() *lib.Client {

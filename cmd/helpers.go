@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+func whToKwh(wh int) float64 {
+	return float64(wh) / 1000.0
+}
+
 func printJSON(data any) {
 	output, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

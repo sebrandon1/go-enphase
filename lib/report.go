@@ -71,13 +71,13 @@ func FormatTodaySummary(s *SystemSummary, todayConsWh int, ratePerKWh float64) s
 
 // MonthStats holds computed statistics for a month of energy production.
 type MonthStats struct {
-	TotalKWh  float64
-	DailyAvg  float64
-	BestKWh   float64
-	WorstKWh  float64
-	Above15   int
-	Below5    int
-	DaysCount int
+	TotalKWh  float64 `json:"total_kwh"`
+	DailyAvg  float64 `json:"daily_avg_kwh"`
+	BestKWh   float64 `json:"best_day_kwh"`
+	WorstKWh  float64 `json:"worst_day_kwh"`
+	Above15   int     `json:"days_above_15kwh"`
+	Below5    int     `json:"days_below_5kwh"`
+	DaysCount int     `json:"days_reported"`
 }
 
 // ComputeMonthStats computes statistics from daily production values (in Wh).
@@ -181,12 +181,12 @@ func LastTwoMonths() (twoMonthsAgo, lastMonth string) {
 
 // DailyRow holds one day of combined production and consumption data.
 type DailyRow struct {
-	Date           string
-	ProductionWh   int
-	ConsumptionWh  int
-	ProductionKWh  float64
-	ConsumptionKWh float64
-	NetKWh         float64
+	Date           string  `json:"date"`
+	ProductionWh   int     `json:"production_wh"`
+	ConsumptionWh  int     `json:"consumption_wh"`
+	ProductionKWh  float64 `json:"production_kwh"`
+	ConsumptionKWh float64 `json:"consumption_kwh"`
+	NetKWh         float64 `json:"net_kwh"`
 }
 
 // dailyDateRange computes the overall start/end dates spanned by production and
@@ -373,6 +373,185 @@ func BuildHistoryRecords(rows []DailyRow, ratePerKWh float64) []HistoryRecord {
 		}
 	}
 	return records
+}
+
+// FormatSummaryReport formats a day-over-day comparison of today vs yesterday
+// plus current month running stats. This is the best command for answering
+// "how does today compare to yesterday?" or "how is this month going?"
+func FormatSummaryReport(summary *SystemSummary, yesterdayProdWh, yesterdayConsWh, todayConsWh int, monthProd []int, monthLabel string, ratePerKWh float64) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Solar Summary (System %d) ===\n\n", summary.SystemID)
+
+	todayKWh := float64(summary.EnergyToday) / 1000.0
+	yesterdayKWh := float64(yesterdayProdWh) / 1000.0
+
+	b.WriteString("  Day-over-Day:\n")
+	fmt.Fprintf(&b, "    Yesterday: %8.2f kWh", yesterdayKWh)
+	if ratePerKWh > 0 {
+		fmt.Fprintf(&b, "  ($%.2f)", yesterdayKWh*ratePerKWh)
+	}
+	if yesterdayConsWh > 0 {
+		fmt.Fprintf(&b, "  |  consumed %.2f kWh", float64(yesterdayConsWh)/1000.0)
+	}
+	b.WriteString("\n")
+
+	fmt.Fprintf(&b, "    Today:     %8.2f kWh", todayKWh)
+	if ratePerKWh > 0 {
+		fmt.Fprintf(&b, "  ($%.2f)", todayKWh*ratePerKWh)
+	}
+	fmt.Fprintf(&b, "  [in progress, %d W now]", summary.CurrentPower)
+	b.WriteString("\n")
+
+	if yesterdayProdWh > 0 {
+		delta := todayKWh - yesterdayKWh
+		pct := (delta / yesterdayKWh) * 100.0
+		if delta >= 0 {
+			fmt.Fprintf(&b, "    Change:    +%.2f kWh  (+%.1f%%)\n", delta, pct)
+		} else {
+			fmt.Fprintf(&b, "    Change:    %.2f kWh  (%.1f%%)\n", delta, pct)
+		}
+	}
+
+	if todayConsWh > 0 {
+		todayConsKWh := float64(todayConsWh) / 1000.0
+		netKWh := todayKWh - todayConsKWh
+		if netKWh >= 0 {
+			fmt.Fprintf(&b, "    Grid Export:  %.2f kWh\n", netKWh)
+		} else {
+			fmt.Fprintf(&b, "    Grid Draw:    %.2f kWh\n", -netKWh)
+		}
+	}
+
+	if len(monthProd) > 0 {
+		stats := ComputeMonthStats(monthProd)
+		b.WriteString("\n")
+		fmt.Fprintf(&b, "  %s (so far, %d days):\n", monthLabel, stats.DaysCount)
+		fmt.Fprintf(&b, "    Total:     %8.2f kWh", stats.TotalKWh)
+		if ratePerKWh > 0 {
+			fmt.Fprintf(&b, "  ($%.2f)", stats.TotalKWh*ratePerKWh)
+		}
+		b.WriteString("\n")
+		fmt.Fprintf(&b, "    Daily Avg: %8.2f kWh/day\n", stats.DailyAvg)
+		fmt.Fprintf(&b, "    Best Day:  %8.2f kWh\n", stats.BestKWh)
+		fmt.Fprintf(&b, "    Worst Day: %8.2f kWh\n", stats.WorstKWh)
+	}
+
+	return b.String()
+}
+
+// writeWeekRow writes a single formatted row to b, adapting columns based on
+// whether consumption and rate data are available.
+func writeWeekRow(b *strings.Builder, label string, prodKWh, consKWh, netKWh, ratePerKWh float64, hasCons bool) {
+	switch {
+	case ratePerKWh > 0 && hasCons:
+		fmt.Fprintf(b, "  %-12s  %9.2f kWh  %7s  %9.2f kWh  %7s  %7.2f kWh\n",
+			label, prodKWh, fmt.Sprintf("$%.2f", prodKWh*ratePerKWh),
+			consKWh, fmt.Sprintf("$%.2f", consKWh*ratePerKWh), netKWh)
+	case hasCons:
+		fmt.Fprintf(b, "  %-12s  %9.2f kWh  %9.2f kWh  %7.2f kWh\n",
+			label, prodKWh, consKWh, netKWh)
+	case ratePerKWh > 0:
+		fmt.Fprintf(b, "  %-12s  %9.2f kWh  %7s\n",
+			label, prodKWh, fmt.Sprintf("$%.2f", prodKWh*ratePerKWh))
+	default:
+		fmt.Fprintf(b, "  %-12s  %9.2f kWh\n", label, prodKWh)
+	}
+}
+
+// FormatWeekReport formats a complete N-day history table with totals and averages.
+// Unlike FormatDailyReport, it contains only complete days — no in-progress today data.
+func FormatWeekReport(rows []DailyRow, ratePerKWh float64) string {
+	var b strings.Builder
+
+	if len(rows) == 0 {
+		return "No data available.\n"
+	}
+
+	hasCons := false
+	for _, r := range rows {
+		if r.ConsumptionWh > 0 {
+			hasCons = true
+			break
+		}
+	}
+
+	first := rows[0].Date
+	last := rows[len(rows)-1].Date
+	fmt.Fprintf(&b, "=== %d-Day Report (%s to %s) ===\n\n", len(rows), first, last)
+
+	switch {
+	case ratePerKWh > 0 && hasCons:
+		fmt.Fprintf(&b, "  %-12s  %12s  %8s  %12s  %8s  %10s\n",
+			"Date", "Production", "Prod $", "Consumption", "Cons $", "Net")
+	case hasCons:
+		fmt.Fprintf(&b, "  %-12s  %12s  %12s  %10s\n", "Date", "Production", "Consumption", "Net")
+	case ratePerKWh > 0:
+		fmt.Fprintf(&b, "  %-12s  %12s  %8s\n", "Date", "Production", "Value")
+	default:
+		fmt.Fprintf(&b, "  %-12s  %12s\n", "Date", "Production")
+	}
+
+	var totalProd, totalCons float64
+	for _, r := range rows {
+		totalProd += r.ProductionKWh
+		totalCons += r.ConsumptionKWh
+		writeWeekRow(&b, r.Date, r.ProductionKWh, r.ConsumptionKWh, r.NetKWh, ratePerKWh, hasCons)
+	}
+
+	n := float64(len(rows))
+	avgProd := totalProd / n
+	avgCons := totalCons / n
+
+	b.WriteString("  ---\n")
+	writeWeekRow(&b, "Total", totalProd, totalCons, totalProd-totalCons, ratePerKWh, hasCons)
+	writeWeekRow(&b, "Average", avgProd, avgCons, avgProd-avgCons, ratePerKWh, hasCons)
+
+	return b.String()
+}
+
+// FormatMonthReport formats aggregate statistics for a single calendar month.
+// Use this to get total production, daily average, best/worst day, and consumption
+// for any given month.
+func FormatMonthReport(systemID, month string, prod *EnergyLifetime, cons *ConsumptionLifetime, ratePerKWh float64) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Monthly Report: %s (System %s) ===\n\n", month, systemID)
+
+	if prod == nil || len(prod.Production) == 0 {
+		b.WriteString("  No production data available.\n")
+		return b.String()
+	}
+
+	stats := ComputeMonthStats(prod.Production)
+
+	fmt.Fprintf(&b, "  %-22s  %12s\n", "Metric", "Value")
+	fmt.Fprintf(&b, "  %-22s  %12s\n", "----------------------", "------------")
+	fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Total Production", stats.TotalKWh)
+	if ratePerKWh > 0 {
+		fmt.Fprintf(&b, "  %-22s  %11s\n", "Est. Value", fmt.Sprintf("$%.2f", stats.TotalKWh*ratePerKWh))
+	}
+	fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Daily Average", stats.DailyAvg)
+	fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Best Day", stats.BestKWh)
+	fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Worst Day", stats.WorstKWh)
+	fmt.Fprintf(&b, "  %-22s  %12d\n", "Days > 15 kWh", stats.Above15)
+	fmt.Fprintf(&b, "  %-22s  %12d\n", "Days < 5 kWh", stats.Below5)
+	fmt.Fprintf(&b, "  %-22s  %12d\n", "Days Reported", stats.DaysCount)
+
+	if cons != nil && len(cons.Consumption) > 0 {
+		consStats := ComputeMonthStats(cons.Consumption)
+		b.WriteString("\n")
+		fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Total Consumption", consStats.TotalKWh)
+		if ratePerKWh > 0 {
+			fmt.Fprintf(&b, "  %-22s  %11s\n", "Consumption Cost", fmt.Sprintf("$%.2f", consStats.TotalKWh*ratePerKWh))
+		}
+		netKWh := stats.TotalKWh - consStats.TotalKWh
+		fmt.Fprintf(&b, "  %-22s  %9.1f kWh\n", "Net (Prod-Cons)", netKWh)
+		offsetPct := (stats.TotalKWh / consStats.TotalKWh) * 100.0
+		fmt.Fprintf(&b, "  %-22s  %11.0f%%\n", "Solar Offset", offsetPct)
+	}
+
+	return b.String()
 }
 
 // WriteHistoryFile writes the history JSON to the given path.
