@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,11 @@ var systemsCmd = &cobra.Command{
 			fmt.Printf("Error listing systems: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(systems)
+		if isJSONOutput() {
+			printJSON(systems)
+			return
+		}
+		fmt.Print(lib.FormatSystems(systems))
 	},
 }
 
@@ -32,7 +37,11 @@ var summaryCmd = &cobra.Command{
 			fmt.Printf("Error getting summary: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(summary)
+		if isJSONOutput() {
+			printJSON(summary)
+			return
+		}
+		fmt.Print(lib.FormatSystemSummary(summary))
 	},
 }
 
@@ -47,7 +56,11 @@ var devicesCmd = &cobra.Command{
 			fmt.Printf("Error listing devices: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(devices)
+		if isJSONOutput() {
+			printJSON(devices)
+			return
+		}
+		fmt.Print(lib.FormatDevices(devices))
 	},
 }
 
