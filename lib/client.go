@@ -76,8 +76,13 @@ type Client struct {
 	EnvoyToken   string
 	HTTPClient   *http.Client
 
+	// OnTokenRefresh is called after a successful automatic token refresh with
+	// the new access and refresh tokens, allowing callers to persist them.
+	OnTokenRefresh func(accessToken, refreshToken string)
+
 	envoyTokenExpiry time.Time
 	envoyTokenMu     sync.Mutex
+	refreshMu        sync.Mutex
 }
 
 func newHTTPClientWithTLS(insecure bool) *http.Client {
@@ -178,19 +183,56 @@ func drainAndClose(body io.ReadCloser) {
 	body.Close()
 }
 
+// tryRefreshToken attempts to refresh the access token when a 401 is received.
+// oldToken is the token that was used for the failed request; if another goroutine
+// has already refreshed (c.AccessToken != oldToken), the refresh is skipped.
+// Returns true if the client now has a fresh token (either just refreshed or
+// already refreshed by a concurrent goroutine).
+func (c *Client) tryRefreshToken(oldToken string) bool {
+	if c.RefreshToken == "" || c.ClientID == "" || c.ClientSecret == "" {
+		return false
+	}
+	c.refreshMu.Lock()
+	defer c.refreshMu.Unlock()
+	if c.AccessToken != oldToken {
+		return true // already refreshed by another goroutine
+	}
+	token, err := c.RefreshAccessToken()
+	if err != nil {
+		return false
+	}
+	if c.OnTokenRefresh != nil {
+		c.OnTokenRefresh(token.AccessToken, token.RefreshToken)
+	}
+	return true
+}
+
 func (c *Client) cloudGetCtx(ctx context.Context, url string, v any) error {
+	oldToken := c.AccessToken
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
 	c.setCloudHeaders(req)
-
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer drainAndClose(resp.Body)
 
+	if resp.StatusCode == http.StatusUnauthorized && c.tryRefreshToken(oldToken) {
+		drainAndClose(resp.Body)
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return err
+		}
+		c.setCloudHeaders(req)
+		resp, err = c.HTTPClient.Do(req)
+		if err != nil {
+			return err
+		}
+	}
+
+	defer drainAndClose(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
@@ -227,22 +269,41 @@ func (c *Client) envoyGet(url string, v any) error {
 }
 
 func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params map[string]string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	buildReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		c.setCloudHeaders(req)
+		if len(params) > 0 {
+			addQueryParams(req, params)
+		}
+		return req, nil
+	}
+
+	oldToken := c.AccessToken
+	req, err := buildReq()
 	if err != nil {
 		return err
 	}
-	c.setCloudHeaders(req)
-
-	if len(params) > 0 {
-		addQueryParams(req, params)
-	}
-
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer drainAndClose(resp.Body)
 
+	if resp.StatusCode == http.StatusUnauthorized && c.tryRefreshToken(oldToken) {
+		drainAndClose(resp.Body)
+		req, err = buildReq()
+		if err != nil {
+			return err
+		}
+		resp, err = c.HTTPClient.Do(req)
+		if err != nil {
+			return err
+		}
+	}
+
+	defer drainAndClose(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
