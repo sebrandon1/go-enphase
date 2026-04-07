@@ -64,6 +64,7 @@ func TestRootPersistentFlags(t *testing.T) {
 		{"envoy-ip flag", "envoy-ip"},
 		{"envoy-token flag", "envoy-token"},
 		{"envoy-serial flag", "envoy-serial"},
+		{"output flag", "output"},
 	}
 
 	for _, tt := range tests {

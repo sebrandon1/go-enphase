@@ -65,6 +65,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&envoyToken, "envoy-token", "", "Local Envoy JWT token")
 	rootCmd.PersistentFlags().StringVar(&envoySerial, "envoy-serial", "", "Envoy serial number")
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Config file path (default: ~/.enphase/config)")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format: text or json")
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(authCmd)

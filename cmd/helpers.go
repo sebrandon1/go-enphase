@@ -6,6 +6,14 @@ import (
 	"os"
 )
 
+var outputFormat string
+
+const outputJSON = "json"
+
+func isJSONOutput() bool {
+	return outputFormat == outputJSON
+}
+
 func whToKwh(wh int) float64 {
 	return float64(wh) / 1000.0
 }

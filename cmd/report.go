@@ -14,10 +14,6 @@ import (
 var dailyDays int
 var weekDays int
 var historyOutput string
-var reportOutput string
-
-const outputJSON = "json"
-
 var ratePerKWh float64
 
 type todayJSON struct {
@@ -155,7 +151,7 @@ var reportTodayCmd = &cobra.Command{
 		if errCons == nil && cons != nil && len(cons.Consumption) > 0 {
 			todayConsWh = cons.Consumption[0]
 		}
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			prodKWh := whToKwh(summary.EnergyToday)
 			out := todayJSON{
 				SystemID:      summary.SystemID,
@@ -231,7 +227,7 @@ var reportCompareCmd = &cobra.Command{
 		}
 
 		resolveRate()
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			printJSON(compareJSON{
 				SystemID:   systemID,
 				MonthA:     compareMonthJSON{Month: monthA, Stats: lib.ComputeMonthStats(prodA.Production)},
@@ -296,7 +292,7 @@ var reportDailyCmd = &cobra.Command{
 		}
 
 		rows := lib.BuildDailyRows(prod, cons, dailyDays)
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			todayKWh := whToKwh(summary.EnergyToday)
 			out := dailyJSON{
 				SystemID:      summary.SystemID,
@@ -434,7 +430,7 @@ var reportSummaryCmd = &cobra.Command{
 			monthProdValues = mProd.Production
 		}
 
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			todayKWh := whToKwh(summary.EnergyToday)
 			yesterdayKWh := whToKwh(yesterdayProdWh)
 			changeKWh := todayKWh - yesterdayKWh
@@ -522,7 +518,7 @@ var reportWeekCmd = &cobra.Command{
 		}
 
 		rows := lib.BuildDailyRows(prod, cons, weekDays)
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			out := weekJSON{Days: len(rows), Rows: rows}
 			if len(rows) > 0 {
 				out.StartDate = rows[0].Date
@@ -590,7 +586,7 @@ var reportMonthCmd = &cobra.Command{
 			cons = nil
 		}
 
-		if reportOutput == outputJSON {
+		if isJSONOutput() {
 			out := monthJSON{Month: month, SystemID: systemID, RatePerKWh: ratePerKWh}
 			if prod != nil && len(prod.Production) > 0 {
 				out.Production = lib.ComputeMonthStats(prod.Production)
@@ -630,7 +626,6 @@ func resolveRate() {
 
 func init() {
 	reportCmd.PersistentFlags().Float64Var(&ratePerKWh, "rate", 0, "Electricity rate per kWh (for dollar estimates)")
-	reportCmd.PersistentFlags().StringVarP(&reportOutput, "output", "o", "text", "Output format: text or json")
 
 	reportDailyCmd.Flags().IntVar(&dailyDays, "days", 7, "Number of trailing days to include in the report")
 	reportWeekCmd.Flags().IntVar(&weekDays, "days", 7, "Number of complete days to include in the report")
