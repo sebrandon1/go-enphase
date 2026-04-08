@@ -2,6 +2,8 @@ module github.com/sebrandon1/go-enphase
 
 go 1.26.2
 
+toolchain go1.26.2
+
 require github.com/spf13/cobra v1.10.2
 
 require (
