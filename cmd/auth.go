@@ -14,7 +14,7 @@ var (
 )
 
 var authStatusCmd = &cobra.Command{
-	Use:   "status",
+	Use:   cmdStatus,
 	Short: "Show token status (no secrets displayed)",
 	Run: func(cmd *cobra.Command, args []string) {
 		status := map[string]any{
@@ -51,7 +51,7 @@ var authRefreshCmd = &cobra.Command{
 }
 
 var envoyTokenCmd = &cobra.Command{
-	Use:   "envoy-token",
+	Use:   cmdEnvoyToken,
 	Short: "Get Envoy JWT token via Enlighten login",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := getCloudClient()

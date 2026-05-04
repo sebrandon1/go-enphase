@@ -363,7 +363,7 @@ var reportHistoryCmd = &cobra.Command{
 }
 
 var reportSummaryCmd = &cobra.Command{
-	Use:   "summary",
+	Use:   cmdSummary,
 	Short: "Day-over-day comparison: today vs yesterday, plus current month stats",
 	Long:  "Answers 'how does today compare to yesterday?' — shows yesterday's final production, today's in-progress total, the kWh/percent change, and current month running statistics (total, daily average, best/worst day). This is the best command for a quick daily check-in.",
 	Run: func(cmd *cobra.Command, args []string) {

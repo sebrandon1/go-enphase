@@ -8,7 +8,7 @@ import (
 )
 
 var envoyStatusCmd = &cobra.Command{
-	Use:   "status",
+	Use:   cmdStatus,
 	Short: "Get local Envoy production and consumption",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := getEnvoyClient()
