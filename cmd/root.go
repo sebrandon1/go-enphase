@@ -40,17 +40,17 @@ var rootCmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get",
+	Use:   cmdGet,
 	Short: "Get data from Enphase cloud API",
 }
 
 var authCmd = &cobra.Command{
-	Use:   "auth",
+	Use:   cmdAuth,
 	Short: "Authentication management",
 }
 
 var envoyCmd = &cobra.Command{
-	Use:   "envoy",
+	Use:   cmdEnvoy,
 	Short: "Local Envoy gateway commands",
 }
 

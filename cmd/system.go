@@ -9,7 +9,7 @@ import (
 )
 
 var systemsCmd = &cobra.Command{
-	Use:   "systems",
+	Use:   cmdSystems,
 	Short: "List all systems",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := getCloudClient()
@@ -27,7 +27,7 @@ var systemsCmd = &cobra.Command{
 }
 
 var summaryCmd = &cobra.Command{
-	Use:   "summary",
+	Use:   cmdSummary,
 	Short: "Get system summary",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
@@ -46,7 +46,7 @@ var summaryCmd = &cobra.Command{
 }
 
 var devicesCmd = &cobra.Command{
-	Use:   "devices",
+	Use:   cmdDevices,
 	Short: "List devices in a system",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()

@@ -16,7 +16,7 @@ var (
 )
 
 var productionCmd = &cobra.Command{
-	Use:   "production",
+	Use:   cmdProduction,
 	Short: "Get production meter readings",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
@@ -35,7 +35,7 @@ var productionCmd = &cobra.Command{
 }
 
 var energyLifetimeCmd = &cobra.Command{
-	Use:   "energy-lifetime",
+	Use:   cmdEnergyLifetime,
 	Short: "Get lifetime energy production history",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
@@ -54,7 +54,7 @@ var energyLifetimeCmd = &cobra.Command{
 }
 
 var consumptionCmd = &cobra.Command{
-	Use:   "consumption",
+	Use:   cmdConsumption,
 	Short: "Get lifetime consumption history",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
@@ -73,7 +73,7 @@ var consumptionCmd = &cobra.Command{
 }
 
 var batteryCmd = &cobra.Command{
-	Use:   "battery",
+	Use:   cmdBattery,
 	Short: "Get battery status",
 	Run: func(cmd *cobra.Command, args []string) {
 		requireSystemID()
