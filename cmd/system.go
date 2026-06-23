@@ -15,7 +15,7 @@ var systemsCmd = &cobra.Command{
 		client := getCloudClient()
 		systems, err := client.ListSystems()
 		if err != nil {
-			fmt.Printf("Error listing systems: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error listing systems: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
@@ -34,7 +34,7 @@ var summaryCmd = &cobra.Command{
 		client := getCloudClient()
 		summary, err := client.GetSystemSummary(systemID)
 		if err != nil {
-			fmt.Printf("Error getting summary: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
@@ -53,7 +53,7 @@ var devicesCmd = &cobra.Command{
 		client := getCloudClient()
 		devices, err := client.ListDevices(systemID)
 		if err != nil {
-			fmt.Printf("Error listing devices: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error listing devices: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {

@@ -208,40 +208,7 @@ func (c *Client) tryRefreshToken(oldToken string) bool {
 }
 
 func (c *Client) cloudGetCtx(ctx context.Context, url string, v any) error {
-	oldToken := c.AccessToken
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	c.setCloudHeaders(req)
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode == http.StatusUnauthorized && c.tryRefreshToken(oldToken) {
-		drainAndClose(resp.Body)
-		req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return err
-		}
-		c.setCloudHeaders(req)
-		resp, err = c.HTTPClient.Do(req)
-		if err != nil {
-			return err
-		}
-	}
-
-	defer drainAndClose(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
-	}
-	return decodeJSON(resp.Body, v)
-}
-
-func (c *Client) cloudGet(url string, v any) error {
-	return c.cloudGetCtx(context.Background(), url, v)
+	return c.cloudGetWithParamsCtx(ctx, url, nil, v)
 }
 
 func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
@@ -262,10 +229,6 @@ func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
 	}
 	return decodeJSON(resp.Body, v)
-}
-
-func (c *Client) envoyGet(url string, v any) error {
-	return c.envoyGetCtx(context.Background(), url, v)
 }
 
 func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params map[string]string, v any) error {
@@ -311,10 +274,6 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 	return decodeJSON(resp.Body, v)
 }
 
-func (c *Client) postForm(url string, formData string, v any) error {
-	return c.postFormWithAuth(url, formData, "", "", v)
-}
-
 func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, username, password string, v any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(formData))
 	if err != nil {
@@ -340,10 +299,6 @@ func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, usernam
 		return decodeJSON(resp.Body, v)
 	}
 	return nil
-}
-
-func (c *Client) postFormWithAuth(url, formData, username, password string, v any) error {
-	return c.postFormWithAuthCtx(context.Background(), url, formData, username, password, v)
 }
 
 // EnsureEnvoyToken ensures a valid Envoy JWT is set on the client, refreshing it if

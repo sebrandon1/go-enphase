@@ -9,9 +9,12 @@ import (
 // Config holds all runtime configuration for the ha-exporter.
 type Config struct {
 	// Enphase cloud credentials
-	APIKey      string `json:"api_key"`
-	AccessToken string `json:"access_token"`
-	SystemID    string `json:"system_id"`
+	APIKey       string `json:"api_key"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	SystemID     string `json:"system_id"`
 
 	// Local Envoy
 	EnvoyIP     string `json:"envoy_ip"`

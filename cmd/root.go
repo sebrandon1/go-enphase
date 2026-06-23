@@ -87,11 +87,11 @@ func requireSystemID() {
 	client := getCloudClient()
 	systems, err := client.ListSystems()
 	if err != nil {
-		fmt.Printf("Error: --system-id not provided and failed to list systems: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: --system-id not provided and failed to list systems: %v\n", err)
 		os.Exit(1)
 	}
 	if len(systems) == 0 {
-		fmt.Println("Error: --system-id not provided and no systems found in account")
+		fmt.Fprintln(os.Stderr, "Error: --system-id not provided and no systems found in account")
 		os.Exit(1)
 	}
 
@@ -104,7 +104,7 @@ func getCloudClient() *lib.Client {
 	}
 	client, err := lib.NewClientWithRefresh(apiKey, accessToken, refreshToken, clientID, clientSecret)
 	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
 		os.Exit(1)
 	}
 	client.OnTokenRefresh = func(at, rt string) {
@@ -118,17 +118,13 @@ func getCloudClient() *lib.Client {
 	return client
 }
 
-func getCloudClientWithRefresh() *lib.Client {
-	return getCloudClient()
-}
-
 func getEnvoyClient() *lib.Client {
 	if localClient != nil {
 		return localClient
 	}
 	client, err := lib.NewEnvoyClient(envoyIP, envoyToken)
 	if err != nil {
-		fmt.Printf("Error creating envoy client: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error creating envoy client: %v\n", err)
 		os.Exit(1)
 	}
 	localClient = client

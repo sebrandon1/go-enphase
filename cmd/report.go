@@ -144,7 +144,7 @@ var reportTodayCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Printf("Error getting summary: %v\n", errSummary)
+			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
 			os.Exit(1)
 		}
 		var todayConsWh int
@@ -195,12 +195,12 @@ var reportCompareCmd = &cobra.Command{
 
 		startA, endA, err := lib.MonthDateRange(monthA)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 		startB, endB, err := lib.MonthDateRange(monthB)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -218,11 +218,11 @@ var reportCompareCmd = &cobra.Command{
 		}()
 		wg.Wait()
 		if errA != nil {
-			fmt.Printf("Error fetching %s: %v\n", monthA, errA)
+			fmt.Fprintf(os.Stderr, "Error fetching %s: %v\n", monthA, errA)
 			os.Exit(1)
 		}
 		if errB != nil {
-			fmt.Printf("Error fetching %s: %v\n", monthB, errB)
+			fmt.Fprintf(os.Stderr, "Error fetching %s: %v\n", monthB, errB)
 			os.Exit(1)
 		}
 
@@ -278,16 +278,16 @@ var reportDailyCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Printf("Error getting summary: %v\n", errSummary)
+			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
 			os.Exit(1)
 		}
 		if errProd != nil {
-			fmt.Printf("Error getting production: %v\n", errProd)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
 			os.Exit(1)
 		}
 		if errCons != nil {
 			// Consumption may not be available on all systems; warn but continue.
-			fmt.Printf("Warning: consumption data unavailable: %v\n", errCons)
+			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
 			cons = nil
 		}
 
@@ -338,11 +338,11 @@ var reportHistoryCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Printf("Error getting production: %v\n", errProd)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
 			os.Exit(1)
 		}
 		if errCons != nil {
-			fmt.Printf("Warning: consumption data unavailable: %v\n", errCons)
+			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
 			cons = nil
 		}
 
@@ -355,7 +355,7 @@ var reportHistoryCmd = &cobra.Command{
 		}
 
 		if err := lib.WriteHistoryFile(historyOutput, systemIDInt, ratePerKWh, records); err != nil {
-			fmt.Printf("Error writing history: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error writing history: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Printf("Wrote %d records to %s\n", len(records), historyOutput)
@@ -404,11 +404,11 @@ var reportSummaryCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Printf("Error getting summary: %v\n", errSummary)
+			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
 			os.Exit(1)
 		}
 		if errMProd != nil {
-			fmt.Printf("Error getting production: %v\n", errMProd)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errMProd)
 			os.Exit(1)
 		}
 
@@ -509,11 +509,11 @@ var reportWeekCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Printf("Error getting production: %v\n", errProd)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
 			os.Exit(1)
 		}
 		if errCons != nil {
-			fmt.Printf("Warning: consumption data unavailable: %v\n", errCons)
+			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
 			cons = nil
 		}
 
@@ -557,7 +557,7 @@ var reportMonthCmd = &cobra.Command{
 
 		start, end, err := lib.MonthDateRange(month)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -578,11 +578,11 @@ var reportMonthCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Printf("Error getting production: %v\n", errProd)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
 			os.Exit(1)
 		}
 		if errCons != nil {
-			fmt.Printf("Warning: consumption data unavailable: %v\n", errCons)
+			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
 			cons = nil
 		}
 

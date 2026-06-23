@@ -23,7 +23,7 @@ var productionCmd = &cobra.Command{
 		client := getCloudClient()
 		readings, err := client.GetProductionMeterReadings(systemID)
 		if err != nil {
-			fmt.Printf("Error getting production: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
@@ -42,7 +42,7 @@ var energyLifetimeCmd = &cobra.Command{
 		client := getCloudClient()
 		energy, err := client.GetEnergyLifetime(systemID, energyStartDate, energyEndDate)
 		if err != nil {
-			fmt.Printf("Error getting energy lifetime: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting energy lifetime: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
@@ -61,7 +61,7 @@ var consumptionCmd = &cobra.Command{
 		client := getCloudClient()
 		consumption, err := client.GetConsumptionLifetime(systemID, consumptionStartDate, consumptionEndDate)
 		if err != nil {
-			fmt.Printf("Error getting consumption: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
@@ -80,7 +80,7 @@ var batteryCmd = &cobra.Command{
 		client := getCloudClient()
 		battery, err := client.GetBatteryStatus(systemID)
 		if err != nil {
-			fmt.Printf("Error getting battery status: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting battery status: %v\n", err)
 			os.Exit(1)
 		}
 		if isJSONOutput() {
