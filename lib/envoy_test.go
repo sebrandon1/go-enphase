@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,7 @@ func TestGetEnvoyProductionSuccess(t *testing.T) {
 	client, _ := NewEnvoyClient("localhost", "")
 	// Override to use http test server
 	var result EnvoyProduction
-	err := client.envoyGet(server.URL+"/production.json", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/production.json", &result)
 	if err != nil {
 		t.Fatalf("GetEnvoyProduction failed: %v", err)
 	}
@@ -53,7 +54,7 @@ func TestGetEnvoySensorsSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result sensorReadingsResponse
-	err := client.envoyGet(server.URL+"/ivp/sensors/readings_object", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/sensors/readings_object", &result)
 	if err != nil {
 		t.Fatalf("GetEnvoySensors failed: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestGetEnvoySensorsEmptyResponse(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result sensorReadingsResponse
-	err := client.envoyGet(server.URL+"/ivp/sensors/readings_object", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/sensors/readings_object", &result)
 	if err != nil {
 		t.Fatalf("GetEnvoySensors with empty failed: %v", err)
 	}
@@ -123,7 +124,7 @@ func TestGetEnvoySimpleProductionSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result EnvoySimpleProduction
-	err := client.envoyGet(server.URL+"/api/v1/production", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production", &result)
 	if err != nil {
 		t.Fatalf("GetEnvoySimpleProduction failed: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestGetEnvoySimpleProductionError(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/api/v1/production", &EnvoySimpleProduction{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production", &EnvoySimpleProduction{})
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
 	}
@@ -162,7 +163,7 @@ func TestGetEnvoySimpleProductionInvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/api/v1/production", &EnvoySimpleProduction{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production", &EnvoySimpleProduction{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -180,7 +181,7 @@ func TestGetInverterReadingsSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result []InverterReading
-	err := client.envoyGet(server.URL+"/api/v1/production/inverters", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production/inverters", &result)
 	if err != nil {
 		t.Fatalf("GetInverterReadings failed: %v", err)
 	}
@@ -207,7 +208,7 @@ func TestGetInverterReadingsError(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/api/v1/production/inverters", &[]InverterReading{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production/inverters", &[]InverterReading{})
 	if err == nil {
 		t.Error("Expected error for 404, got nil")
 	}
@@ -221,7 +222,7 @@ func TestGetInverterReadingsInvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/api/v1/production/inverters", &[]InverterReading{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/api/v1/production/inverters", &[]InverterReading{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -239,7 +240,7 @@ func TestGetMeterConfigSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result []MeterConfig
-	err := client.envoyGet(server.URL+"/ivp/meters", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters", &result)
 	if err != nil {
 		t.Fatalf("GetMeterConfig failed: %v", err)
 	}
@@ -266,7 +267,7 @@ func TestGetMeterConfigError(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/ivp/meters", &[]MeterConfig{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters", &[]MeterConfig{})
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
 	}
@@ -280,7 +281,7 @@ func TestGetMeterConfigInvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/ivp/meters", &[]MeterConfig{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters", &[]MeterConfig{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -298,7 +299,7 @@ func TestGetMeterReadingsSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result []MeterData
-	err := client.envoyGet(server.URL+"/ivp/meters/readings", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters/readings", &result)
 	if err != nil {
 		t.Fatalf("GetMeterReadings failed: %v", err)
 	}
@@ -325,7 +326,7 @@ func TestGetMeterReadingsError(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/ivp/meters/readings", &[]MeterData{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters/readings", &[]MeterData{})
 	if err == nil {
 		t.Error("Expected error for 404, got nil")
 	}
@@ -339,7 +340,7 @@ func TestGetMeterReadingsInvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewEnvoyClient("localhost", "")
-	err := client.envoyGet(server.URL+"/ivp/meters/readings", &[]MeterData{})
+	err := client.envoyGetCtx(context.Background(), server.URL+"/ivp/meters/readings", &[]MeterData{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}

@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+func (c *Client) checkEnvoyIP() error {
+	if c.EnvoyIP == "" {
+		return fmt.Errorf("envoy IP is required")
+	}
+	return nil
+}
+
 // GetEnvoyProduction returns production and consumption data from the local Envoy.
 func (c *Client) GetEnvoyProduction() (*EnvoyProduction, error) {
 	return c.GetEnvoyProductionCtx(context.Background())
@@ -13,8 +20,8 @@ func (c *Client) GetEnvoyProduction() (*EnvoyProduction, error) {
 // GetEnvoyProductionCtx returns production and consumption data from the local Envoy,
 // respecting the provided context.
 func (c *Client) GetEnvoyProductionCtx(ctx context.Context) (*EnvoyProduction, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var production EnvoyProduction
@@ -33,8 +40,8 @@ func (c *Client) GetEnvoySensors() ([]SensorReading, error) {
 // GetEnvoySensorsCtx returns sensor readings from the local Envoy, respecting the
 // provided context.
 func (c *Client) GetEnvoySensorsCtx(ctx context.Context) ([]SensorReading, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var result sensorReadingsResponse
@@ -59,8 +66,8 @@ func (c *Client) GetEnvoySimpleProduction() (*EnvoySimpleProduction, error) {
 // GetEnvoySimpleProductionCtx returns the basic production summary from the local Envoy,
 // respecting the provided context.
 func (c *Client) GetEnvoySimpleProductionCtx(ctx context.Context) (*EnvoySimpleProduction, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var result EnvoySimpleProduction
@@ -80,8 +87,8 @@ func (c *Client) GetInverterReadings() ([]InverterReading, error) {
 // GetInverterReadingsCtx returns per-inverter production data from the local Envoy,
 // respecting the provided context.
 func (c *Client) GetInverterReadingsCtx(ctx context.Context) ([]InverterReading, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var result []InverterReading
@@ -101,8 +108,8 @@ func (c *Client) GetMeterConfig() ([]MeterConfig, error) {
 // GetMeterConfigCtx returns meter configuration from the local Envoy, respecting the
 // provided context.
 func (c *Client) GetMeterConfigCtx(ctx context.Context) ([]MeterConfig, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var result []MeterConfig
@@ -122,8 +129,8 @@ func (c *Client) GetMeterReadings() ([]MeterData, error) {
 // GetMeterReadingsCtx returns the latest meter readings from the local Envoy,
 // respecting the provided context.
 func (c *Client) GetMeterReadingsCtx(ctx context.Context) ([]MeterData, error) {
-	if c.EnvoyIP == "" {
-		return nil, fmt.Errorf("envoy IP is required")
+	if err := c.checkEnvoyIP(); err != nil {
+		return nil, err
 	}
 
 	var result []MeterData

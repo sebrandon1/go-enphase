@@ -32,15 +32,15 @@ var authRefreshCmd = &cobra.Command{
 	Use:   "refresh",
 	Short: "Refresh access token",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := getCloudClientWithRefresh()
+		client := getCloudClient()
 		token, err := client.RefreshAccessToken()
 		if err != nil {
-			fmt.Printf("Error refreshing token: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error refreshing token: %v\n", err)
 			os.Exit(1)
 		}
 		if saveTokens && loadedConfig != nil {
 			if err := loadedConfig.SaveTokens(token.AccessToken, token.RefreshToken); err != nil {
-				fmt.Printf("Error saving tokens: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error saving tokens: %v\n", err)
 				os.Exit(1)
 			}
 			fmt.Println("Token refreshed and saved.")
@@ -57,7 +57,7 @@ var envoyTokenCmd = &cobra.Command{
 		client := getCloudClient()
 		token, err := client.GetEnvoyToken(authEmail, authPassword, envoySerial)
 		if err != nil {
-			fmt.Printf("Error getting envoy token: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting envoy token: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println(token)

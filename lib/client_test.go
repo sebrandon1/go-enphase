@@ -136,7 +136,7 @@ func TestCloudGetSuccess(t *testing.T) {
 	client, _ := NewClient("apikey1", "tok123")
 
 	var result System
-	err := client.cloudGet(server.URL+"/test", &result)
+	err := client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
 	if err != nil {
 		t.Fatalf("cloudGet failed: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestCloudGetErrorStatus(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet(server.URL+"/test", &result)
+	err := client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
 	}
@@ -169,7 +169,7 @@ func TestCloudGetInvalidJSON(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet(server.URL+"/test", &result)
+	err := client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -178,7 +178,7 @@ func TestCloudGetInvalidJSON(t *testing.T) {
 func TestCloudGetConnectionRefused(t *testing.T) {
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet("http://localhost:1/test", &result)
+	err := client.cloudGetCtx(context.Background(), "http://localhost:1/test", &result)
 	if err == nil {
 		t.Error("Expected error for connection refused, got nil")
 	}
@@ -187,7 +187,7 @@ func TestCloudGetConnectionRefused(t *testing.T) {
 func TestCloudGetBadURL(t *testing.T) {
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet("://bad", &result)
+	err := client.cloudGetCtx(context.Background(), "://bad", &result)
 	if err == nil {
 		t.Error("Expected error for bad URL, got nil")
 	}
@@ -207,7 +207,7 @@ func TestEnvoyGetSuccess(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "envoy-jwt")
 	var result EnvoyProduction
-	err := client.envoyGet(server.URL+"/production.json", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/production.json", &result)
 	if err != nil {
 		t.Fatalf("envoyGet failed: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestEnvoyGetNoToken(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result EnvoyProduction
-	err := client.envoyGet(server.URL+"/test", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/test", &result)
 	if err != nil {
 		t.Fatalf("envoyGet with no token failed: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestEnvoyGetErrorStatus(t *testing.T) {
 
 	client, _ := NewEnvoyClient("localhost", "")
 	var result EnvoyProduction
-	err := client.envoyGet(server.URL+"/test", &result)
+	err := client.envoyGetCtx(context.Background(), server.URL+"/test", &result)
 	if err == nil {
 		t.Error("Expected error for 403, got nil")
 	}
@@ -250,7 +250,7 @@ func TestEnvoyGetErrorStatus(t *testing.T) {
 func TestEnvoyGetBadURL(t *testing.T) {
 	client, _ := NewEnvoyClient("localhost", "")
 	var result EnvoyProduction
-	err := client.envoyGet("://bad", &result)
+	err := client.envoyGetCtx(context.Background(), "://bad", &result)
 	if err == nil {
 		t.Error("Expected error for bad URL, got nil")
 	}
@@ -268,7 +268,7 @@ func TestPostFormSuccess(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result TokenInfo
-	err := client.postForm(server.URL+"/test", "grant_type=refresh_token", &result)
+	err := client.postFormWithAuthCtx(context.Background(), server.URL+"/test", "grant_type=refresh_token", "", "", &result)
 	if err != nil {
 		t.Fatalf("postForm failed: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestPostFormErrorStatus(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result TokenInfo
-	err := client.postForm(server.URL+"/test", "data=val", &result)
+	err := client.postFormWithAuthCtx(context.Background(), server.URL+"/test", "data=val", "", "", &result)
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
 	}
@@ -299,7 +299,7 @@ func TestPostFormNilResponse(t *testing.T) {
 	defer server.Close()
 
 	client, _ := NewClient("key", "token")
-	err := client.postForm(server.URL+"/test", "data=val", nil)
+	err := client.postFormWithAuthCtx(context.Background(), server.URL+"/test", "data=val", "", "", nil)
 	if err != nil {
 		t.Fatalf("postForm with nil response failed: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestPostFormNilResponse(t *testing.T) {
 
 func TestPostFormBadURL(t *testing.T) {
 	client, _ := NewClient("key", "token")
-	err := client.postForm("://bad", "data=val", nil)
+	err := client.postFormWithAuthCtx(context.Background(), "://bad", "data=val", "", "", nil)
 	if err == nil {
 		t.Error("Expected error for bad URL, got nil")
 	}
@@ -351,7 +351,7 @@ func TestRetryTransport(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet(server.URL+"/test", &result)
+	err := client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
 	if err != nil {
 		t.Fatalf("Expected success after retries, got: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestRetryNoRetryOn4xx(t *testing.T) {
 
 	client, _ := NewClient("key", "token")
 	var result System
-	err := client.cloudGet(server.URL+"/test", &result)
+	err := client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
 	}

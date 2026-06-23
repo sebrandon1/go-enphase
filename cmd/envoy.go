@@ -14,7 +14,7 @@ var envoyStatusCmd = &cobra.Command{
 		client := getEnvoyClient()
 		production, err := client.GetEnvoyProduction()
 		if err != nil {
-			fmt.Printf("Error getting envoy status: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting envoy status: %v\n", err)
 			os.Exit(1)
 		}
 		printJSON(production)
@@ -28,7 +28,7 @@ var envoySensorsCmd = &cobra.Command{
 		client := getEnvoyClient()
 		sensors, err := client.GetEnvoySensors()
 		if err != nil {
-			fmt.Printf("Error getting sensors: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting sensors: %v\n", err)
 			os.Exit(1)
 		}
 		printJSON(sensors)

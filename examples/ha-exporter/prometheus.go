@@ -31,7 +31,7 @@ func ServeMetrics(col *Collector) http.HandlerFunc {
 			fmt.Fprintf(w, "# HELP enphase_inverter_watts Per-inverter current production in watts.\n")
 			fmt.Fprintf(w, "# TYPE enphase_inverter_watts gauge\n")
 			for serial, watts := range snap.InverterWatts {
-				fmt.Fprintf(w, "enphase_inverter_watts{serial=%q} %.2f\n", serial, watts)
+				fmt.Fprintf(w, "enphase_inverter_watts{serial=\"%s\"} %.2f\n", serial, watts)
 			}
 		}
 	}

@@ -32,7 +32,11 @@ func NewCollector(cfg *Config) (*Collector, error) {
 	var cloud *lib.Client
 	var err error
 	if cfg.APIKey != "" && cfg.AccessToken != "" {
-		cloud, err = lib.NewClient(cfg.APIKey, cfg.AccessToken)
+		if cfg.RefreshToken != "" && cfg.ClientID != "" && cfg.ClientSecret != "" {
+			cloud, err = lib.NewClientWithRefresh(cfg.APIKey, cfg.AccessToken, cfg.RefreshToken, cfg.ClientID, cfg.ClientSecret)
+		} else {
+			cloud, err = lib.NewClient(cfg.APIKey, cfg.AccessToken)
+		}
 		if err != nil {
 			return nil, err
 		}

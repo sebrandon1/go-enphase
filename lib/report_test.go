@@ -367,3 +367,151 @@ func TestWriteHistoryFile(t *testing.T) {
 		t.Errorf("Expected date 2025-03-01, got %s", hf.Records[0].Date)
 	}
 }
+
+func TestFormatSummaryReport(t *testing.T) {
+	summary := &SystemSummary{
+		SystemID:     12345,
+		CurrentPower: 2500,
+		EnergyToday:  18000,
+	}
+	monthProd := []int{10000, 20000, 18000}
+
+	output := FormatSummaryReport(summary, 15000, 0, 0, monthProd, "June 2025", 0)
+
+	if !strings.Contains(output, "System 12345") {
+		t.Error("Expected system ID in output")
+	}
+	if !strings.Contains(output, "15.00 kWh") {
+		t.Error("Expected yesterday production kWh")
+	}
+	if !strings.Contains(output, "18.00 kWh") {
+		t.Error("Expected today production kWh")
+	}
+	if !strings.Contains(output, "2500 W now") {
+		t.Error("Expected current power in output")
+	}
+	if !strings.Contains(output, "June 2025") {
+		t.Error("Expected month label in output")
+	}
+}
+
+func TestFormatSummaryReportWithRate(t *testing.T) {
+	summary := &SystemSummary{
+		SystemID:     99,
+		CurrentPower: 0,
+		EnergyToday:  10000,
+	}
+
+	output := FormatSummaryReport(summary, 10000, 0, 0, nil, "June 2025", 0.13)
+
+	if !strings.Contains(output, "$1.30") {
+		t.Error("Expected dollar value for today at $0.13/kWh")
+	}
+}
+
+func TestFormatSummaryReportWithConsumption(t *testing.T) {
+	summary := &SystemSummary{
+		SystemID:    1,
+		EnergyToday: 10000, // 10 kWh produced
+	}
+
+	// todayConsWh=15000 (15 kWh) > 10 kWh produced → Grid Draw
+	output := FormatSummaryReport(summary, 0, 0, 15000, nil, "June 2025", 0)
+
+	if !strings.Contains(output, "Grid Draw") {
+		t.Error("Expected Grid Draw when consumption exceeds production")
+	}
+}
+
+func TestFormatWeekReport(t *testing.T) {
+	rows := []DailyRow{
+		{Date: "2025-06-01", ProductionWh: 20000, ProductionKWh: 20.0, ConsumptionWh: 30000, ConsumptionKWh: 30.0, NetKWh: -10.0},
+		{Date: "2025-06-02", ProductionWh: 25000, ProductionKWh: 25.0, ConsumptionWh: 28000, ConsumptionKWh: 28.0, NetKWh: -3.0},
+		{Date: "2025-06-03", ProductionWh: 30000, ProductionKWh: 30.0, ConsumptionWh: 20000, ConsumptionKWh: 20.0, NetKWh: 10.0},
+	}
+
+	output := FormatWeekReport(rows, 0.12)
+
+	if !strings.Contains(output, "3-Day Report") {
+		t.Error("Expected day count in header")
+	}
+	if !strings.Contains(output, "2025-06-01") {
+		t.Error("Expected first date in output")
+	}
+	if !strings.Contains(output, "2025-06-03") {
+		t.Error("Expected last date in output")
+	}
+	if !strings.Contains(output, "Total") {
+		t.Error("Expected Total row")
+	}
+	if !strings.Contains(output, "Average") {
+		t.Error("Expected Average row")
+	}
+	if !strings.Contains(output, "Prod $") {
+		t.Error("Expected dollar column header when rate is set")
+	}
+}
+
+func TestFormatWeekReportNoRate(t *testing.T) {
+	rows := []DailyRow{
+		{Date: "2025-06-01", ProductionKWh: 20.0},
+	}
+
+	output := FormatWeekReport(rows, 0)
+
+	if strings.Contains(output, "$") {
+		t.Error("Expected no dollar values when rate is 0")
+	}
+}
+
+func TestFormatWeekReportEmpty(t *testing.T) {
+	output := FormatWeekReport(nil, 0)
+	if !strings.Contains(output, "No data") {
+		t.Error("Expected no-data message for empty rows")
+	}
+}
+
+func TestFormatMonthReport(t *testing.T) {
+	prod := &EnergyLifetime{Production: []int{10000, 20000, 5000, 15000, 25000}}
+	cons := &ConsumptionLifetime{Consumption: []int{30000, 40000, 35000, 50000, 45000}}
+
+	output := FormatMonthReport("12345", "2025-06", prod, cons, 0.13)
+
+	if !strings.Contains(output, "2025-06") {
+		t.Error("Expected month in output")
+	}
+	if !strings.Contains(output, "System 12345") {
+		t.Error("Expected system ID in output")
+	}
+	if !strings.Contains(output, "Total Production") {
+		t.Error("Expected total production label")
+	}
+	if !strings.Contains(output, "Total Consumption") {
+		t.Error("Expected total consumption when cons data is present")
+	}
+	if !strings.Contains(output, "Est. Value") {
+		t.Error("Expected dollar estimate when rate is set")
+	}
+	if !strings.Contains(output, "Solar Offset") {
+		t.Error("Expected solar offset when consumption data present")
+	}
+}
+
+func TestFormatMonthReportNoProduction(t *testing.T) {
+	output := FormatMonthReport("1", "2025-06", nil, nil, 0)
+	if !strings.Contains(output, "No production data") {
+		t.Error("Expected no-data message when production is nil")
+	}
+}
+
+func TestFormatMonthReportNoConsumption(t *testing.T) {
+	prod := &EnergyLifetime{Production: []int{10000, 20000}}
+	output := FormatMonthReport("1", "2025-06", prod, nil, 0)
+
+	if strings.Contains(output, "Consumption") {
+		t.Error("Expected no consumption section when cons is nil")
+	}
+	if !strings.Contains(output, "Total Production") {
+		t.Error("Expected production data")
+	}
+}
