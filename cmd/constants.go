@@ -6,6 +6,7 @@ const (
 	cmdEnvoy          = "envoy"
 	cmdStatus         = "status"
 	cmdSystems        = "systems"
+	cmdSystem         = "system"
 	cmdSummary        = "summary"
 	cmdDevices        = "devices"
 	cmdProduction     = "production"
@@ -13,4 +14,8 @@ const (
 	cmdConsumption    = "consumption"
 	cmdBattery        = "battery"
 	cmdEnvoyToken     = "envoy-token"
+	cmdInverters      = "inverters"
+	cmdStream         = "stream"
+	cmdMeters         = "meters"
+	cmdMeterReadings  = "meter-readings"
 )
