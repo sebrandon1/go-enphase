@@ -79,9 +79,10 @@ func (c *Collector) Run(ctx context.Context, interval time.Duration) {
 func (c *Collector) collect(ctx context.Context) {
 	var wg sync.WaitGroup
 	var (
-		currentPower   float64
+		cloudPower     float64
 		energyToday    float64
 		energyLifetime float64
+		envoyPower     float64
 		netPower       float64
 		inverters      map[string]float64
 	)
@@ -95,7 +96,7 @@ func (c *Collector) collect(ctx context.Context) {
 				Warn("cloud summary error: %v", err)
 				return
 			}
-			currentPower = float64(summary.CurrentPower)
+			cloudPower = float64(summary.CurrentPower)
 			energyToday = float64(summary.EnergyToday)
 			energyLifetime = float64(summary.EnergyLifetime)
 		}()
@@ -112,12 +113,12 @@ func (c *Collector) collect(ctx context.Context) {
 			}
 			for _, p := range prod.Production {
 				if p.Type == "inverters" {
-					currentPower = p.WNow
+					envoyPower = p.WNow
 				}
 			}
 			for _, cons := range prod.Consumption {
 				if cons.MeasurementType == "total-consumption" {
-					netPower = currentPower - cons.WNow
+					netPower = envoyPower - cons.WNow
 				}
 			}
 		}()
@@ -139,6 +140,12 @@ func (c *Collector) collect(ctx context.Context) {
 	}
 
 	wg.Wait()
+
+	// Prefer real-time Envoy data over the cloud summary when available.
+	currentPower := cloudPower
+	if envoyPower > 0 {
+		currentPower = envoyPower
+	}
 
 	c.mu.Lock()
 	c.snap = Snapshot{
