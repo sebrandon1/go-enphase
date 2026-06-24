@@ -64,8 +64,28 @@ var devicesCmd = &cobra.Command{
 	},
 }
 
+var systemCmd = &cobra.Command{
+	Use:   cmdSystem,
+	Short: "Get details for a specific system",
+	Run: func(cmd *cobra.Command, args []string) {
+		requireSystemID()
+		client := getCloudClient()
+		system, err := client.GetSystem(systemID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting system: %v\n", err)
+			os.Exit(1)
+		}
+		if isJSONOutput() {
+			printJSON(system)
+			return
+		}
+		fmt.Print(lib.FormatSystem(system))
+	},
+}
+
 func init() {
 	getCmd.AddCommand(systemsCmd)
+	getCmd.AddCommand(systemCmd)
 	getCmd.AddCommand(summaryCmd)
 	getCmd.AddCommand(devicesCmd)
 }

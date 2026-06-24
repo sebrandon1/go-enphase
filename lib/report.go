@@ -63,7 +63,7 @@ func FormatTodaySummary(s *SystemSummary, todayConsWh int, ratePerKWh float64) s
 
 	if s.LastReportAt > 0 {
 		t := time.Unix(s.LastReportAt, 0)
-		fmt.Fprintf(&b, "  Last Report:     %s\n", t.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "  Last Report:     %s\n", t.Format(tsLayout))
 	}
 
 	return b.String()
@@ -289,7 +289,7 @@ func FormatDailyReport(summary *SystemSummary, rows []DailyRow, ratePerKWh float
 
 	if summary.LastReportAt > 0 {
 		t := time.Unix(summary.LastReportAt, 0)
-		fmt.Fprintf(&b, "  Last Report:         %s\n", t.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "  Last Report:         %s\n", t.Format(tsLayout))
 	}
 
 	if len(rows) > 0 {

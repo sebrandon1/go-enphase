@@ -227,6 +227,129 @@ func TestFormatConsumptionLifetimeEmpty(t *testing.T) {
 	}
 }
 
+func TestFormatSystem(t *testing.T) {
+	s := &System{SystemID: 123, Name: "Home Solar", Status: "normal", Modules: 20, City: "Rochester", State: "MN", TimeZone: "America/Chicago"}
+
+	out := FormatSystem(s)
+
+	if !strings.Contains(out, "System 123") {
+		t.Error("Expected system ID in header")
+	}
+	if !strings.Contains(out, "Home Solar") {
+		t.Error("Expected name")
+	}
+	if !strings.Contains(out, "Rochester, MN") {
+		t.Error("Expected location")
+	}
+	if !strings.Contains(out, "America/Chicago") {
+		t.Error("Expected time zone")
+	}
+	if !strings.Contains(out, "20") {
+		t.Error("Expected module count")
+	}
+}
+
+func TestFormatSystemNoLocation(t *testing.T) {
+	s := &System{SystemID: 99, Name: "Unnamed", Status: "normal", Modules: 5}
+
+	out := FormatSystem(s)
+
+	if !strings.Contains(out, "System 99") {
+		t.Error("Expected system ID in header")
+	}
+	if strings.Contains(out, "Location:") {
+		t.Error("Should not show Location when empty")
+	}
+}
+
+func TestFormatInverterReadings(t *testing.T) {
+	readings := []InverterReading{
+		{SerialNumber: "SN001", LastReportDate: 1700000000, LastReportWatts: 250, MaxReportWatts: 300},
+		{SerialNumber: "SN002", LastReportDate: 0, LastReportWatts: 0, MaxReportWatts: 0},
+	}
+
+	out := FormatInverterReadings(readings)
+
+	if !strings.Contains(out, "Inverter Readings (2)") {
+		t.Error("Expected count in header")
+	}
+	if !strings.Contains(out, "SN001") {
+		t.Error("Expected serial SN001")
+	}
+	if !strings.Contains(out, "250") {
+		t.Error("Expected watts")
+	}
+	if !strings.Contains(out, "SERIAL") {
+		t.Error("Expected table header")
+	}
+}
+
+func TestFormatInverterReadingsEmpty(t *testing.T) {
+	out := FormatInverterReadings(nil)
+
+	if !strings.Contains(out, "No readings found") {
+		t.Error("Expected empty message")
+	}
+}
+
+func TestFormatMeterConfig(t *testing.T) {
+	configs := []MeterConfig{
+		{EID: 704643328, State: "enabled", MeasurementType: "production", PhaseMode: "three", PhaseCount: 3},
+	}
+
+	out := FormatMeterConfig(configs)
+
+	if !strings.Contains(out, "Meter Configuration (1)") {
+		t.Error("Expected count in header")
+	}
+	if !strings.Contains(out, "enabled") {
+		t.Error("Expected state")
+	}
+	if !strings.Contains(out, "production") {
+		t.Error("Expected measurement type")
+	}
+	if !strings.Contains(out, "three") {
+		t.Error("Expected phase mode")
+	}
+}
+
+func TestFormatMeterConfigEmpty(t *testing.T) {
+	out := FormatMeterConfig(nil)
+
+	if !strings.Contains(out, "No meters found") {
+		t.Error("Expected empty message")
+	}
+}
+
+func TestFormatMeterData(t *testing.T) {
+	data := []MeterData{
+		{EID: 704643328, Timestamp: 1700000000, ActPower: 4000.5, ApprntPwr: 4100.0, RmsVoltage: 240.0, RmsCurrent: 16.5},
+	}
+
+	out := FormatMeterData(data)
+
+	if !strings.Contains(out, "Meter Readings (1)") {
+		t.Error("Expected count in header")
+	}
+	if !strings.Contains(out, "4000.5") {
+		t.Error("Expected active power")
+	}
+	if !strings.Contains(out, "240.0") {
+		t.Error("Expected voltage")
+	}
+	if !strings.Contains(out, "EID") {
+		t.Error("Expected table header")
+	}
+}
+
+func TestFormatMeterDataEmpty(t *testing.T) {
+	out := FormatMeterData(nil)
+
+	if !strings.Contains(out, "No readings found") {
+		t.Error("Expected empty message")
+	}
+}
+
 func TestFormatBatteryStatus(t *testing.T) {
 	b := &BatteryStatus{
 		Status:                 "normal",

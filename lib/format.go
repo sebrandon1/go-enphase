@@ -6,6 +6,18 @@ import (
 	"time"
 )
 
+const tsLayout = "2006-01-02 15:04:05"
+
+func formatLocation(city, state string) string {
+	if city == "" {
+		return state
+	}
+	if state == "" {
+		return city
+	}
+	return city + ", " + state
+}
+
 // FormatSystems formats a list of systems as a human-readable table.
 func FormatSystems(systems []System) string {
 	var b strings.Builder
@@ -19,14 +31,7 @@ func FormatSystems(systems []System) string {
 
 	fmt.Fprintf(&b, "  %-12s %-20s %-10s %8s  %s\n", "SYSTEM ID", "NAME", "STATUS", "MODULES", "LOCATION")
 	for _, s := range systems {
-		location := s.City
-		if s.State != "" {
-			if location != "" {
-				location += ", "
-			}
-			location += s.State
-		}
-		fmt.Fprintf(&b, "  %-12d %-20s %-10s %8d  %s\n", s.SystemID, s.Name, s.Status, s.Modules, location)
+		fmt.Fprintf(&b, "  %-12d %-20s %-10s %8d  %s\n", s.SystemID, s.Name, s.Status, s.Modules, formatLocation(s.City, s.State))
 	}
 
 	return b.String()
@@ -46,7 +51,7 @@ func FormatSystemSummary(s *SystemSummary) string {
 
 	if s.LastReportAt > 0 {
 		t := time.Unix(s.LastReportAt, 0)
-		fmt.Fprintf(&b, "  Last Report:     %s\n", t.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "  Last Report:     %s\n", t.Format(tsLayout))
 	}
 
 	return b.String()
@@ -67,7 +72,7 @@ func FormatDevices(devices []Device) string {
 	for _, d := range devices {
 		lastReport := ""
 		if d.LastReportAt > 0 {
-			lastReport = time.Unix(d.LastReportAt, 0).Format("2006-01-02 15:04:05")
+			lastReport = time.Unix(d.LastReportAt, 0).Format(tsLayout)
 		}
 		fmt.Fprintf(&b, "  %-10d %-14s %-12s %-10s %s\n", d.ID, d.SerialNumber, d.Model, d.Status, lastReport)
 	}
@@ -90,7 +95,7 @@ func FormatMeterReadings(readings []MeterReading) string {
 	for _, r := range readings {
 		readAt := ""
 		if r.ReadAt > 0 {
-			readAt = time.Unix(r.ReadAt, 0).Format("2006-01-02 15:04:05")
+			readAt = time.Unix(r.ReadAt, 0).Format(tsLayout)
 		}
 		fmt.Fprintf(&b, "  %-14s %12d  %s\n", r.SerialNumber, r.Value, readAt)
 	}
@@ -182,6 +187,90 @@ func FormatConsumptionLifetime(c *ConsumptionLifetime) string {
 	for i := offset; i < len(c.Consumption); i++ {
 		date := startTime.AddDate(0, 0, i).Format("2006-01-02")
 		fmt.Fprintf(&b, "  %-12s %10.1f kWh\n", date, float64(c.Consumption[i])/1000.0)
+	}
+
+	return b.String()
+}
+
+// FormatSystem formats a single system as human-readable key-value pairs.
+func FormatSystem(s *System) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== System %d ===\n\n", s.SystemID)
+	fmt.Fprintf(&b, "  Name:        %s\n", s.Name)
+	fmt.Fprintf(&b, "  Status:      %s\n", s.Status)
+	fmt.Fprintf(&b, "  Modules:     %d\n", s.Modules)
+
+	if loc := formatLocation(s.City, s.State); loc != "" {
+		fmt.Fprintf(&b, "  Location:    %s\n", loc)
+	}
+	if s.TimeZone != "" {
+		fmt.Fprintf(&b, "  Time Zone:   %s\n", s.TimeZone)
+	}
+
+	return b.String()
+}
+
+// FormatInverterReadings formats per-inverter readings as a human-readable table.
+func FormatInverterReadings(readings []InverterReading) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Inverter Readings (%d) ===\n\n", len(readings))
+
+	if len(readings) == 0 {
+		b.WriteString("  No readings found.\n")
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %-16s %8s %8s  %s\n", "SERIAL", "NOW (W)", "MAX (W)", "LAST REPORT")
+	for _, r := range readings {
+		lastReport := ""
+		if r.LastReportDate > 0 {
+			lastReport = time.Unix(r.LastReportDate, 0).Format(tsLayout)
+		}
+		fmt.Fprintf(&b, "  %-16s %8d %8d  %s\n", r.SerialNumber, r.LastReportWatts, r.MaxReportWatts, lastReport)
+	}
+
+	return b.String()
+}
+
+// FormatMeterConfig formats meter configuration as a human-readable table.
+func FormatMeterConfig(configs []MeterConfig) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Meter Configuration (%d) ===\n\n", len(configs))
+
+	if len(configs) == 0 {
+		b.WriteString("  No meters found.\n")
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %-12s %-10s %-16s %-10s %s\n", "EID", "STATE", "TYPE", "PHASE MODE", "PHASES")
+	for _, m := range configs {
+		fmt.Fprintf(&b, "  %-12d %-10s %-16s %-10s %d\n", m.EID, m.State, m.MeasurementType, m.PhaseMode, m.PhaseCount)
+	}
+
+	return b.String()
+}
+
+// FormatMeterData formats meter readings as a human-readable table.
+func FormatMeterData(data []MeterData) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Meter Readings (%d) ===\n\n", len(data))
+
+	if len(data) == 0 {
+		b.WriteString("  No readings found.\n")
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %-12s %10s %10s %8s %8s  %s\n", "EID", "ACT (W)", "APPR (W)", "VOLTS", "AMPS", "TIMESTAMP")
+	for _, m := range data {
+		ts := ""
+		if m.Timestamp > 0 {
+			ts = time.Unix(m.Timestamp, 0).Format(tsLayout)
+		}
+		fmt.Fprintf(&b, "  %-12d %10.1f %10.1f %8.1f %8.3f  %s\n", m.EID, m.ActPower, m.ApprntPwr, m.RmsVoltage, m.RmsCurrent, ts)
 	}
 
 	return b.String()
