@@ -34,6 +34,28 @@ type Config struct {
 	MQTTTopicPrefix string `json:"mqtt_topic_prefix"` // e.g. "homeassistant"
 }
 
+// SaveTokens atomically rewrites the config file at path with updated tokens.
+func (c *Config) SaveTokens(path, accessToken, refreshToken string) error {
+	updated := *c
+	updated.AccessToken = accessToken
+	updated.RefreshToken = refreshToken
+
+	data, err := json.MarshalIndent(&updated, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("rename config: %w", err)
+	}
+	c.AccessToken = accessToken
+	c.RefreshToken = refreshToken
+	return nil
+}
+
 // LoadConfig reads a JSON config file from path and returns the parsed Config.
 func LoadConfig(path string) (*Config, error) {
 	f, err := os.Open(path)

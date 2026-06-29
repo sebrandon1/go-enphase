@@ -138,3 +138,77 @@ func TestLoadConfigInvalidJSON(t *testing.T) {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
 }
+
+func TestSaveTokens(t *testing.T) {
+	dir := t.TempDir()
+	path := writeConfigFile(t, dir, map[string]any{
+		"api_key":       "k",
+		"access_token":  "old-access",
+		"refresh_token": "old-refresh",
+		"system_id":     "42",
+	})
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+
+	if err := cfg.SaveTokens(path, "new-access", "new-refresh"); err != nil {
+		t.Fatalf("SaveTokens: %v", err)
+	}
+
+	// In-memory state updated.
+	if cfg.AccessToken != "new-access" {
+		t.Errorf("in-memory AccessToken = %q, want %q", cfg.AccessToken, "new-access")
+	}
+	if cfg.RefreshToken != "new-refresh" {
+		t.Errorf("in-memory RefreshToken = %q, want %q", cfg.RefreshToken, "new-refresh")
+	}
+
+	// File persisted with new tokens; unrelated fields must survive the rewrite.
+	reloaded, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig after SaveTokens: %v", err)
+	}
+	if reloaded.AccessToken != "new-access" {
+		t.Errorf("file AccessToken = %q, want %q", reloaded.AccessToken, "new-access")
+	}
+	if reloaded.RefreshToken != "new-refresh" {
+		t.Errorf("file RefreshToken = %q, want %q", reloaded.RefreshToken, "new-refresh")
+	}
+	if reloaded.APIKey != "k" {
+		t.Errorf("file APIKey = %q, want %q", reloaded.APIKey, "k")
+	}
+	if reloaded.SystemID != "42" {
+		t.Errorf("file SystemID = %q, want %q", reloaded.SystemID, "42")
+	}
+
+	// No leftover tmp file.
+	if _, err := os.Stat(path + ".tmp"); !os.IsNotExist(err) {
+		t.Error("tmp file still exists after SaveTokens")
+	}
+
+	// File written with restricted permissions.
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("file mode = %o, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestSaveTokensBadPath(t *testing.T) {
+	cfg := &Config{APIKey: "k", AccessToken: "old", RefreshToken: "oldr"}
+	err := cfg.SaveTokens("/nonexistent/dir/config.json", "new", "newr")
+	if err == nil {
+		t.Error("expected error writing to nonexistent path, got nil")
+	}
+	// In-memory state must not be updated when the file write fails.
+	if cfg.AccessToken != "old" {
+		t.Errorf("AccessToken mutated on error: got %q, want %q", cfg.AccessToken, "old")
+	}
+	if cfg.RefreshToken != "oldr" {
+		t.Errorf("RefreshToken mutated on error: got %q, want %q", cfg.RefreshToken, "oldr")
+	}
+}
