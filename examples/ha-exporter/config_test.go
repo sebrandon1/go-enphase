@@ -119,6 +119,57 @@ func TestLoadConfigOverridesDefaults(t *testing.T) {
 	}
 }
 
+func TestMQTTClientIDDefaultsToSerial(t *testing.T) {
+	dir := t.TempDir()
+	path := writeConfigFile(t, dir, map[string]any{
+		"api_key":      "k",
+		"envoy_serial": "SN12345",
+	})
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if cfg.MQTTClientID != "go-enphase-SN12345" {
+		t.Errorf("MQTTClientID = %q, want %q", cfg.MQTTClientID, "go-enphase-SN12345")
+	}
+}
+
+func TestMQTTClientIDDefaultsToRandom(t *testing.T) {
+	dir := t.TempDir()
+	path := writeConfigFile(t, dir, map[string]any{"api_key": "k"})
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if cfg.MQTTClientID == "" {
+		t.Error("MQTTClientID should not be empty when serial is unset")
+	}
+	if len(cfg.MQTTClientID) < len("go-enphase-") {
+		t.Errorf("MQTTClientID too short: %q", cfg.MQTTClientID)
+	}
+}
+
+func TestMQTTClientIDExplicit(t *testing.T) {
+	dir := t.TempDir()
+	path := writeConfigFile(t, dir, map[string]any{
+		"api_key":        "k",
+		"mqtt_client_id": "my-custom-id",
+	})
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if cfg.MQTTClientID != "my-custom-id" {
+		t.Errorf("MQTTClientID = %q, want %q", cfg.MQTTClientID, "my-custom-id")
+	}
+}
+
 func TestLoadConfigMissingFile(t *testing.T) {
 	_, err := LoadConfig("/nonexistent/path/config.json")
 	if err == nil {
