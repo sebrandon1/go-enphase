@@ -28,10 +28,10 @@ type MQTTPublisher struct {
 }
 
 // NewMQTTPublisher creates and connects an MQTTPublisher.
-func NewMQTTPublisher(broker, username, password, prefix, serial string) (*MQTTPublisher, error) {
+func NewMQTTPublisher(broker, username, password, prefix, serial, clientID string) (*MQTTPublisher, error) {
 	opts := mqtt.NewClientOptions().
 		AddBroker(broker).
-		SetClientID("go-enphase-exporter").
+		SetClientID(clientID).
 		SetUsername(username).
 		SetPassword(password).
 		SetAutoReconnect(true)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 )
 
@@ -28,10 +29,11 @@ type Config struct {
 	MetricsAddr string `json:"metrics_addr"` // e.g. ":9090"
 
 	// MQTT / Home Assistant
-	MQTTBroker      string `json:"mqtt_broker"`       // e.g. "tcp://192.168.1.10:1883"
+	MQTTBroker      string `json:"mqtt_broker"`        // e.g. "tcp://192.168.1.10:1883"
 	MQTTUsername    string `json:"mqtt_username"`
 	MQTTPassword    string `json:"mqtt_password"`
-	MQTTTopicPrefix string `json:"mqtt_topic_prefix"` // e.g. "homeassistant"
+	MQTTTopicPrefix string `json:"mqtt_topic_prefix"`  // e.g. "homeassistant"
+	MQTTClientID    string `json:"mqtt_client_id"`     // unique per broker; defaults to "go-enphase-<serial>"
 }
 
 // SaveTokens atomically rewrites the config file at path with updated tokens.
@@ -79,6 +81,13 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if cfg.MQTTTopicPrefix == "" {
 		cfg.MQTTTopicPrefix = "homeassistant"
+	}
+	if cfg.MQTTClientID == "" {
+		if cfg.EnvoySerial != "" {
+			cfg.MQTTClientID = "go-enphase-" + cfg.EnvoySerial
+		} else {
+			cfg.MQTTClientID = fmt.Sprintf("go-enphase-%08x", rand.Uint32())
+		}
 	}
 
 	return &cfg, nil

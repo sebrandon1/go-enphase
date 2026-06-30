@@ -52,7 +52,7 @@ func main() {
 	var mqttPub *MQTTPublisher
 	if cfg.MQTTBroker != "" && cfg.EnvoySerial != "" {
 		mqttPub, err = NewMQTTPublisher(cfg.MQTTBroker, cfg.MQTTUsername, cfg.MQTTPassword,
-			cfg.MQTTTopicPrefix, cfg.EnvoySerial)
+			cfg.MQTTTopicPrefix, cfg.EnvoySerial, cfg.MQTTClientID)
 		if err != nil {
 			Warn("MQTT unavailable: %v — continuing without MQTT", err)
 		} else {
