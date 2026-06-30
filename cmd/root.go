@@ -23,8 +23,9 @@ var (
 	envoySerial  string
 	configFile   string
 
-	configRatePerKWh string
-	loadedConfig     *lib.Config
+	configRatePerKWh    string
+	loadedConfig        *lib.Config
+	configLoadAttempted bool
 
 	cloudClient *lib.Client
 	localClient *lib.Client
@@ -131,19 +132,25 @@ func getEnvoyClient() *lib.Client {
 	return client
 }
 
-// loadConfigIfAvailable loads config from file, using values as defaults
-// (CLI flags take precedence).
+// loadConfigIfAvailable loads config from file then falls back to environment
+// variables. CLI flags always take precedence; config file beats env vars.
 func loadConfigIfAvailable() {
-	if loadedConfig != nil {
+	if configLoadAttempted {
 		return
 	}
+	configLoadAttempted = true
 
 	cfg, err := lib.LoadConfig(configFile)
-	if err != nil {
-		return
+	if err == nil {
+		loadedConfig = cfg
+		applyConfigFile(cfg)
 	}
-	loadedConfig = cfg
 
+	// Env vars fill in anything the config file left empty.
+	applyEnvFallbacks()
+}
+
+func applyConfigFile(cfg *lib.Config) {
 	if apiKey == "" {
 		apiKey = cfg.APIKey
 	}
@@ -171,7 +178,44 @@ func loadConfigIfAvailable() {
 	if envoySerial == "" {
 		envoySerial = cfg.EnvoySerial
 	}
-	configRatePerKWh = cfg.RatePerKWh
+	if configRatePerKWh == "" {
+		configRatePerKWh = cfg.RatePerKWh
+	}
+}
+
+// applyEnvFallbacks fills in any configuration variables still unset after
+// CLI flags and config file have been applied.
+func applyEnvFallbacks() {
+	if apiKey == "" {
+		apiKey = os.Getenv("ENPHASE_API_KEY")
+	}
+	if accessToken == "" {
+		accessToken = os.Getenv("ENPHASE_ACCESS_TOKEN")
+	}
+	if refreshToken == "" {
+		refreshToken = os.Getenv("ENPHASE_REFRESH_TOKEN")
+	}
+	if clientID == "" {
+		clientID = os.Getenv("ENPHASE_CLIENT_ID")
+	}
+	if clientSecret == "" {
+		clientSecret = os.Getenv("ENPHASE_CLIENT_SECRET")
+	}
+	if systemID == "" {
+		systemID = os.Getenv("ENPHASE_SYSTEM_ID")
+	}
+	if envoyIP == "" {
+		envoyIP = os.Getenv("ENPHASE_ENVOY_IP")
+	}
+	if envoyToken == "" {
+		envoyToken = os.Getenv("ENPHASE_ENVOY_TOKEN")
+	}
+	if envoySerial == "" {
+		envoySerial = os.Getenv("ENPHASE_ENVOY_SERIAL")
+	}
+	if configRatePerKWh == "" {
+		configRatePerKWh = os.Getenv("ENPHASE_RATE_PER_KWH")
+	}
 }
 
 // Execute executes the root command.
