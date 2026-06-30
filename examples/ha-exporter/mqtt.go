@@ -63,7 +63,9 @@ func (p *MQTTPublisher) PublishDiscovery() {
 			s.name, p.prefix, p.serial, s.unit, s.field,
 			p.serial, s.field, p.serial,
 		)
-		p.client.Publish(topic, 1, true, payload)
+		if token := p.client.Publish(topic, 1, true, payload); token.Wait() && token.Error() != nil {
+			Warn("mqtt discovery publish failed for %s: %v", s.field, token.Error())
+		}
 	}
 }
 
@@ -83,7 +85,9 @@ func (p *MQTTPublisher) PublishState(snap Snapshot) {
 	}
 
 	topic := fmt.Sprintf("%s/sensor/solar_%s/state", p.prefix, p.serial)
-	p.client.Publish(topic, 0, false, payload)
+	if token := p.client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
+		Warn("mqtt state publish failed: %v", token.Error())
+	}
 }
 
 // Disconnect cleanly disconnects from the broker.
