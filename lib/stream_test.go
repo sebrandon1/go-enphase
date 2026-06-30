@@ -1,10 +1,12 @@
 package lib
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -168,6 +170,43 @@ func TestStreamMeterMalformedEvent(t *testing.T) {
 	}
 	if errCount != 1 {
 		t.Errorf("Expected 1 parse error, got %d", errCount)
+	}
+}
+
+func TestStreamMeterLargeEvent(t *testing.T) {
+	// Build a valid JSON event whose wire size exceeds the default 64 KB scanner
+	// buffer. The extra bytes live in a padding field ignored by StreamMeterEvent.
+	padding := strings.Repeat("x", 70_000)
+	bigEvent := fmt.Sprintf(`{"eid":42,"timestamp":9999,"activePower":123.0,"_pad":%q}`, padding)
+	if len(bigEvent) <= bufio.MaxScanTokenSize {
+		t.Fatalf("test event too small (%d bytes); increase padding", len(bigEvent))
+	}
+
+	server := sseTestServer(t, []string{bigEvent}, nil)
+	defer server.Close()
+
+	client := envoyClientForTLSServer(server)
+
+	var received []*StreamMeterEvent
+	var parseErr error
+	err := client.streamMeterOnce(context.Background(), func(ev *StreamMeterEvent, e error) {
+		if e != nil {
+			parseErr = e
+		} else {
+			received = append(received, ev)
+		}
+	})
+	if err != nil {
+		t.Fatalf("streamMeterOnce returned scanner error: %v", err)
+	}
+	if parseErr != nil {
+		t.Fatalf("handler received parse error: %v", parseErr)
+	}
+	if len(received) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(received))
+	}
+	if received[0].EID != 42 || received[0].ActPower != 123.0 {
+		t.Errorf("event fields wrong: got eid=%d activePower=%f", received[0].EID, received[0].ActPower)
 	}
 }
 

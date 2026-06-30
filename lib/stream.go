@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// sseMaxLineBytes is the maximum SSE line the scanner will accept (1 MiB).
+const sseMaxLineBytes = 1 << 20
+
 // StreamMeter connects to the Envoy real-time meter SSE stream at /stream/meter and
 // calls handler for each event. It automatically reconnects with exponential backoff
 // (1s to 60s) on error. The loop runs until ctx is canceled.
@@ -64,6 +67,7 @@ func (c *Client) streamMeterOnce(ctx context.Context, handler func(*StreamMeterE
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 4096), sseMaxLineBytes)
 	for scanner.Scan() {
 		if ctx.Err() != nil {
 			return nil
