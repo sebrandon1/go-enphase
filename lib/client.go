@@ -188,11 +188,15 @@ func drainAndClose(body io.ReadCloser) {
 // has already refreshed (c.AccessToken != oldToken), the refresh is skipped.
 // Returns true if the client now has a fresh token (either just refreshed or
 // already refreshed by a concurrent goroutine).
+// TryLock is used instead of Lock to prevent deadlock when called re-entrantly
+// through RefreshAccessToken → postFormWithAuthCtx → tryRefreshToken.
 func (c *Client) tryRefreshToken(oldToken string) bool {
 	if c.RefreshToken == "" || c.ClientID == "" || c.ClientSecret == "" {
 		return false
 	}
-	c.refreshMu.Lock()
+	if !c.refreshMu.TryLock() {
+		return false // refresh already in progress (re-entrant or concurrent)
+	}
 	defer c.refreshMu.Unlock()
 	if c.AccessToken != oldToken {
 		return true // already refreshed by another goroutine
@@ -275,21 +279,41 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 }
 
 func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, username, password string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(formData))
+	buildReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(formData))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if username != "" {
+			req.SetBasicAuth(username, password)
+		}
+		return req, nil
+	}
+
+	oldToken := c.AccessToken
+	req, err := buildReq()
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if username != "" {
-		req.SetBasicAuth(username, password)
-	}
-
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer drainAndClose(resp.Body)
 
+	if resp.StatusCode == http.StatusUnauthorized && c.tryRefreshToken(oldToken) {
+		drainAndClose(resp.Body)
+		req, err = buildReq()
+		if err != nil {
+			return err
+		}
+		resp, err = c.HTTPClient.Do(req)
+		if err != nil {
+			return err
+		}
+	}
+
+	defer drainAndClose(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -289,6 +290,38 @@ func TestPostFormErrorStatus(t *testing.T) {
 	err := client.postFormWithAuthCtx(context.Background(), server.URL+"/test", "data=val", "", "", &result)
 	if err == nil {
 		t.Error("Expected error for 401, got nil")
+	}
+}
+
+func TestPostFormRetryOn401(t *testing.T) {
+	var attempts int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"access_token":"new-token","refresh_token":"new-rt","token_type":"Bearer","expires_in":3600}`))
+			return
+		}
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"access_token":"unused"}`))
+	}))
+	defer server.Close()
+
+	originalURL := CloudBaseURL
+	CloudBaseURL = server.URL
+	defer func() { CloudBaseURL = originalURL }()
+
+	client, _ := NewClientWithRefresh("key", "old-token", "rt", "cid", "csecret")
+	var result TokenInfo
+	err := client.postFormWithAuthCtx(context.Background(), server.URL+"/target", "data=val", "", "", &result)
+	if err != nil {
+		t.Fatalf("postFormWithAuthCtx returned error after 401 retry: %v", err)
+	}
+	if n := atomic.LoadInt32(&attempts); n != 2 {
+		t.Errorf("Expected 2 attempts to /target, got %d", n)
 	}
 }
 
