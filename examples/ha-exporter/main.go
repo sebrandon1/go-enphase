@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	col, err := NewCollector(cfg)
+	col, err := NewCollector(cfg, *configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating collector: %v\n", err)
 		os.Exit(1)

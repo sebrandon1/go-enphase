@@ -20,25 +20,33 @@ type Snapshot struct {
 
 // Collector polls Enphase cloud and local Envoy APIs and maintains a Snapshot.
 type Collector struct {
-	cfg     *Config
-	client  *lib.Client
-	envoy   *lib.Client
-	mu      sync.RWMutex
-	snap    Snapshot
+	cfg    *Config
+	client *lib.Client
+	envoy  *lib.Client
+	mu     sync.RWMutex
+	snap   Snapshot
 }
 
 // NewCollector creates a Collector from the given config.
-func NewCollector(cfg *Config) (*Collector, error) {
+func NewCollector(cfg *Config, configPath string) (*Collector, error) {
 	var cloud *lib.Client
 	var err error
 	if cfg.APIKey != "" && cfg.AccessToken != "" {
 		if cfg.RefreshToken != "" && cfg.ClientID != "" && cfg.ClientSecret != "" {
 			cloud, err = lib.NewClientWithRefresh(cfg.APIKey, cfg.AccessToken, cfg.RefreshToken, cfg.ClientID, cfg.ClientSecret)
+			if err != nil {
+				return nil, err
+			}
+			cloud.OnTokenRefresh = func(accessToken, refreshToken string) {
+				if saveErr := cfg.SaveTokens(configPath, accessToken, refreshToken); saveErr != nil {
+					Warn("failed to persist refreshed tokens: %v", saveErr)
+				}
+			}
 		} else {
 			cloud, err = lib.NewClient(cfg.APIKey, cfg.AccessToken)
-		}
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
