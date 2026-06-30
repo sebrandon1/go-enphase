@@ -131,5 +131,20 @@ func (c *Config) SaveTokens(accessToken, refreshToken string) error {
 		}
 	}
 
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
+	return atomicWriteFile(path, []byte(strings.Join(lines, "\n")))
+}
+
+// atomicWriteFile writes data to path atomically via a sibling tmp file and
+// os.Rename, so a crash mid-write leaves the original file intact.
+func atomicWriteFile(path string, data []byte) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
+		return fmt.Errorf("write %s: %w", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
+		return fmt.Errorf("rename %s: %w", tmp, err)
+	}
+	return nil
 }
