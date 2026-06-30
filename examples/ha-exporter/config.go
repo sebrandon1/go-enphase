@@ -46,9 +46,11 @@ func (c *Config) SaveTokens(path, accessToken, refreshToken string) error {
 	}
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
 		return fmt.Errorf("write config: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
 		return fmt.Errorf("rename config: %w", err)
 	}
 	c.AccessToken = accessToken

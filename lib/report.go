@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os"
 	"strings"
 	"time"
 )
@@ -567,7 +566,7 @@ func WriteHistoryFile(path string, systemID int, ratePerKWh float64, records []H
 	if err != nil {
 		return fmt.Errorf("marshaling history: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := atomicWriteFile(path, data); err != nil {
 		return fmt.Errorf("writing history file: %w", err)
 	}
 	return nil

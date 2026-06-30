@@ -83,6 +83,42 @@ ENPHASE_SYSTEM_ID=12345
 	}
 }
 
+func TestSaveTokensAtomic(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config")
+
+	if err := os.WriteFile(configPath, []byte("ENPHASE_API_KEY=k\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Path: configPath}
+	if err := cfg.SaveTokens("tok", "ref"); err != nil {
+		t.Fatalf("SaveTokens: %v", err)
+	}
+
+	// No tmp file left behind.
+	if _, err := os.Stat(configPath + ".tmp"); !os.IsNotExist(err) {
+		t.Error("tmp file still present after SaveTokens")
+	}
+
+	// File has restricted permissions.
+	info, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("file mode = %04o, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestSaveTokensMissingFile(t *testing.T) {
+	cfg := &Config{Path: "/nonexistent/dir/config"}
+	err := cfg.SaveTokens("tok", "ref")
+	if err == nil {
+		t.Error("expected error for missing config file, got nil")
+	}
+}
+
 func TestSaveTokensAppendsNew(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config")
