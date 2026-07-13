@@ -66,3 +66,18 @@ jobs:
       run: |
         go build -v -o bin/go-enphase .
         ./bin/go-enphase --help
+
+  ha-exporter:
+    name: ha-exporter Build & Test
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Build and test ha-exporter
+      run: cd examples/ha-exporter && go build ./... && go test -race ./...
