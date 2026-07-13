@@ -31,8 +31,6 @@ linters:
     paths:
       - third_party$
       - builtin$
-      - examples$
-      - ^examples/
 formatters:
   enable:
     - gofmt
@@ -42,4 +40,3 @@ formatters:
     paths:
       - third_party$
       - builtin$
-      - examples$
