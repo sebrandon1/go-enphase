@@ -32,7 +32,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "enphase",
+	Use:     "go-enphase",
 	Short:   "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
 	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -75,7 +75,7 @@ func init() {
 		Use:   "version",
 		Short: "Print the version number",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("enphase version", Version)
+			fmt.Println("go-enphase version", Version)
 		},
 	})
 }
