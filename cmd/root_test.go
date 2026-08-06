@@ -10,8 +10,8 @@ func TestRootCommandExists(t *testing.T) {
 	if rootCmd == nil {
 		t.Fatal("rootCmd should not be nil")
 	}
-	if rootCmd.Use != "enphase" {
-		t.Errorf("Expected Use 'enphase', got '%s'", rootCmd.Use)
+	if rootCmd.Use != "go-enphase" {
+		t.Errorf("Expected Use 'go-enphase', got '%s'", rootCmd.Use)
 	}
 }
 
