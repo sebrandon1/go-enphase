@@ -276,6 +276,30 @@ func TestGetConsumptionLifetimeInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestGetProductionMeterReadingsInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetProductionMeterReadings("not-an-id")
+	if err == nil {
+		t.Error("Expected error for invalid system ID, got nil")
+	}
+}
+
+func TestGetEnergyLifetimeInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetEnergyLifetime("123/../token", "", "")
+	if err == nil {
+		t.Error("Expected error for invalid system ID, got nil")
+	}
+}
+
+func TestGetConsumptionLifetimeInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetConsumptionLifetime("", "", "")
+	if err == nil {
+		t.Error("Expected error for empty system ID, got nil")
+	}
+}
+
 func TestGetProductionMeterReadingsConnectionRefused(t *testing.T) {
 	originalURL := CloudBaseURL
 	CloudBaseURL = "http://localhost:1"

@@ -25,6 +25,9 @@ func (c *Client) GetSystem(systemID string) (*System, error) {
 
 // GetSystemCtx returns details for a specific system, respecting the provided context.
 func (c *Client) GetSystemCtx(ctx context.Context, systemID string) (*System, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var system System
 	err := c.cloudGetCtx(ctx, CloudBaseURL+"/api/v4/systems/"+systemID, &system)
 	if err != nil {
@@ -41,6 +44,9 @@ func (c *Client) GetSystemSummary(systemID string) (*SystemSummary, error) {
 // GetSystemSummaryCtx returns the production summary for a system, respecting the
 // provided context.
 func (c *Client) GetSystemSummaryCtx(ctx context.Context, systemID string) (*SystemSummary, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var summary SystemSummary
 	err := c.cloudGetCtx(ctx, CloudBaseURL+"/api/v4/systems/"+systemID+"/summary", &summary)
 	if err != nil {
@@ -56,6 +62,9 @@ func (c *Client) ListDevices(systemID string) ([]Device, error) {
 
 // ListDevicesCtx returns devices for a system, respecting the provided context.
 func (c *Client) ListDevicesCtx(ctx context.Context, systemID string) ([]Device, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var result devicesResponse
 	err := c.cloudGetCtx(ctx, CloudBaseURL+"/api/v4/systems/"+systemID+"/devices", &result)
 	if err != nil {

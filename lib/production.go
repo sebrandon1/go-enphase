@@ -10,6 +10,9 @@ func (c *Client) GetProductionMeterReadings(systemID string) ([]MeterReading, er
 // GetProductionMeterReadingsCtx returns production meter readings for a system,
 // respecting the provided context.
 func (c *Client) GetProductionMeterReadingsCtx(ctx context.Context, systemID string) ([]MeterReading, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var result meterReadingsResponse
 	err := c.cloudGetCtx(ctx, CloudBaseURL+"/api/v4/systems/"+systemID+"/production_meter_readings", &result)
 	if err != nil {
@@ -37,6 +40,9 @@ func (c *Client) GetEnergyLifetime(systemID, startDate, endDate string) (*Energy
 // GetEnergyLifetimeCtx returns lifetime energy production data, respecting the
 // provided context.
 func (c *Client) GetEnergyLifetimeCtx(ctx context.Context, systemID, startDate, endDate string) (*EnergyLifetime, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var result EnergyLifetime
 	err := c.cloudGetWithParamsCtx(
 		ctx,
@@ -58,6 +64,9 @@ func (c *Client) GetConsumptionLifetime(systemID, startDate, endDate string) (*C
 // GetConsumptionLifetimeCtx returns lifetime energy consumption data, respecting the
 // provided context.
 func (c *Client) GetConsumptionLifetimeCtx(ctx context.Context, systemID, startDate, endDate string) (*ConsumptionLifetime, error) {
+	if err := validateSystemID(systemID); err != nil {
+		return nil, err
+	}
 	var result ConsumptionLifetime
 	err := c.cloudGetWithParamsCtx(
 		ctx,
