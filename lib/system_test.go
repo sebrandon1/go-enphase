@@ -212,6 +212,64 @@ func TestListDevicesInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestGetSystemError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	originalURL := CloudBaseURL
+	CloudBaseURL = server.URL
+	defer func() { CloudBaseURL = originalURL }()
+
+	client, _ := NewClient("key", "token")
+	_, err := client.GetSystem("999")
+	if err == nil {
+		t.Error("Expected error for 404, got nil")
+	}
+}
+
+func TestGetSystemSummaryError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	originalURL := CloudBaseURL
+	CloudBaseURL = server.URL
+	defer func() { CloudBaseURL = originalURL }()
+
+	client, _ := NewClient("key", "token")
+	_, err := client.GetSystemSummary("123")
+	if err == nil {
+		t.Error("Expected error for 401, got nil")
+	}
+}
+
+func TestGetSystemInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetSystem("123/../token")
+	if err == nil {
+		t.Error("Expected error for invalid system ID, got nil")
+	}
+}
+
+func TestGetSystemSummaryInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetSystemSummary("../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for invalid system ID, got nil")
+	}
+}
+
+func TestListDevicesInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.ListDevices("")
+	if err == nil {
+		t.Error("Expected error for empty system ID, got nil")
+	}
+}
+
 func TestListSystemsConnectionRefused(t *testing.T) {
 	originalURL := CloudBaseURL
 	CloudBaseURL = "http://localhost:1"

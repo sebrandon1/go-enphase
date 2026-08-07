@@ -76,6 +76,14 @@ func TestGetBatteryStatusConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestGetBatteryStatusInvalidID(t *testing.T) {
+	client, _ := NewClient("key", "token")
+	_, err := client.GetBatteryStatus("../secrets")
+	if err == nil {
+		t.Error("Expected error for invalid system ID, got nil")
+	}
+}
+
 func TestGetBatteryStatusInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
