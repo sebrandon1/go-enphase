@@ -23,6 +23,12 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
@@ -43,6 +49,9 @@ jobs:
 
     - name: Download dependencies
       run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.out ./...
@@ -69,6 +78,9 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Verify dependencies
+      run: go mod verify
+
     - name: Build binary
       run: |
         go build -v -o bin/go-enphase .
@@ -86,5 +98,32 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Download dependencies
+      run: cd examples/ha-exporter && go mod download
+
+    - name: Verify dependencies
+      run: cd examples/ha-exporter && go mod verify
+
     - name: Build and test ha-exporter
       run: cd examples/ha-exporter && go build ./... && go test -race ./...
+
+  vuln:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    - name: Scan root module
+      run: govulncheck ./...
+
+    - name: Scan ha-exporter module
+      run: cd examples/ha-exporter && govulncheck ./...
