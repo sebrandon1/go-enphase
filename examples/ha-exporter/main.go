@@ -84,12 +84,16 @@ func main() {
 	// Metrics HTTP server.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/metrics", ServeMetrics(col))
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
+	mux.HandleFunc("/healthz", healthzHandler(col, pollInterval))
 
-	srv := &http.Server{Addr: cfg.MetricsAddr, Handler: mux}
+	srv := &http.Server{
+		Addr:              cfg.MetricsAddr,
+		Handler:           mux,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	go func() {
 		Info("metrics server listening on %s", cfg.MetricsAddr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

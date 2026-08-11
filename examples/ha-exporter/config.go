@@ -68,6 +68,10 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	defer f.Close()
 
+	if info, statErr := f.Stat(); statErr == nil && info.Mode().Perm()&0o077 != 0 {
+		Warn("config file %s is readable by group or others (permissions %04o); consider chmod 600", path, info.Mode().Perm())
+	}
+
 	var cfg Config
 	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
