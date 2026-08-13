@@ -170,6 +170,24 @@ func TestMQTTClientIDExplicit(t *testing.T) {
 	}
 }
 
+func TestLoadConfigWorldReadableSucceeds(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	data, _ := json.Marshal(map[string]any{"api_key": "k", "access_token": "t"})
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// LoadConfig should succeed (warning only, no error) on relaxed permissions.
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+	if cfg.APIKey != "k" {
+		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "k")
+	}
+}
+
 func TestLoadConfigMissingFile(t *testing.T) {
 	_, err := LoadConfig("/nonexistent/path/config.json")
 	if err == nil {
