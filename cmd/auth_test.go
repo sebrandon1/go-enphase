@@ -111,3 +111,31 @@ func TestAuthStatusFields(t *testing.T) {
 		})
 	}
 }
+
+func TestEnvoyTokenPasswordStdinFlag(t *testing.T) {
+	f := envoyTokenCmd.Flags().Lookup("password-stdin")
+	if f == nil {
+		t.Fatal("--password-stdin flag not registered on envoy-token command")
+	}
+	if f.Usage != "Read Enlighten password from stdin" {
+		t.Errorf("unexpected usage: %s", f.Usage)
+	}
+}
+
+func TestEnvoyTokenEmailRequired(t *testing.T) {
+	f := envoyTokenCmd.Flags().Lookup("email")
+	if f == nil {
+		t.Fatal("--email flag not registered")
+	}
+	const requiredAnnotation = "cobra_annotation_bash_completion_one_required_flag"
+	if _, ok := f.Annotations[requiredAnnotation]; !ok {
+		t.Error("--email should be marked required (MarkFlagRequired annotation missing)")
+	}
+}
+
+func TestEnvoyTokenPasswordFlag(t *testing.T) {
+	f := envoyTokenCmd.Flags().Lookup("password")
+	if f == nil {
+		t.Fatal("--password flag not registered on envoy-token command")
+	}
+}
