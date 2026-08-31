@@ -13,16 +13,32 @@ var (
 	saveTokens   bool
 )
 
+const (
+	statusAPIKeySet       = "api_key_set"
+	statusAccessTokenSet  = "access_token_set"
+	statusRefreshTokenSet = "refresh_token_set"
+	statusClientIDSet     = "client_id_set"
+	statusClientSecretSet = "client_secret_set"
+	statusSystemIDSet     = "system_id_set"
+	statusEnvoyIPSet      = "envoy_ip_set"
+	statusEnvoyTokenSet   = "envoy_token_set"
+	statusEnvoySerialSet  = "envoy_serial_set"
+)
+
 var authStatusCmd = &cobra.Command{
 	Use:   cmdStatus,
 	Short: "Show token status (no secrets displayed)",
 	Run: func(cmd *cobra.Command, args []string) {
 		status := map[string]any{
-			"api_key_set":       apiKey != "",
-			"access_token_set":  accessToken != "",
-			"refresh_token_set": refreshToken != "",
-			"client_id_set":     clientID != "",
-			"client_secret_set": clientSecret != "",
+			statusAPIKeySet:       apiKey != "",
+			statusAccessTokenSet:  accessToken != "",
+			statusRefreshTokenSet: refreshToken != "",
+			statusClientIDSet:     clientID != "",
+			statusClientSecretSet: clientSecret != "",
+			statusSystemIDSet:     systemID != "",
+			statusEnvoyIPSet:      envoyIP != "",
+			statusEnvoyTokenSet:   envoyToken != "",
+			statusEnvoySerialSet:  envoySerial != "",
 		}
 		printJSON(status)
 	},
