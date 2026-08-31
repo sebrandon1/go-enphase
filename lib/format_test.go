@@ -377,3 +377,80 @@ func TestFormatBatteryStatus(t *testing.T) {
 		t.Error("Expected consumed lifetime")
 	}
 }
+
+func TestFormatEnvoyProduction(t *testing.T) {
+	p := &EnvoyProduction{
+		Production: []EnvoyProductionEntry{
+			{Type: "inverters", ActiveCount: 12, WNow: 1500.5, WhToday: 8200.0, WhLifetime: 123456.0},
+		},
+		Consumption: []EnvoyConsumptionEntry{
+			{Type: "eim", MeasurementType: "total-consumption", ActiveCount: 1, WNow: 900.0, WhToday: 5000.0},
+		},
+	}
+	out := FormatEnvoyProduction(p)
+
+	if !strings.Contains(out, "=== Envoy Production") {
+		t.Error("Expected production header")
+	}
+	if !strings.Contains(out, "inverters") {
+		t.Error("Expected inverters type")
+	}
+	if !strings.Contains(out, "=== Envoy Consumption") {
+		t.Error("Expected consumption header")
+	}
+	if !strings.Contains(out, "total-consumption") {
+		t.Error("Expected consumption measurement type")
+	}
+}
+
+func TestFormatEnvoyProductionNoConsumption(t *testing.T) {
+	p := &EnvoyProduction{
+		Production: []EnvoyProductionEntry{
+			{Type: "inverters", ActiveCount: 8, WNow: 600.0, WhToday: 3000.0, WhLifetime: 50000.0},
+		},
+	}
+	out := FormatEnvoyProduction(p)
+
+	if !strings.Contains(out, "=== Envoy Production") {
+		t.Error("Expected production header")
+	}
+	if strings.Contains(out, "=== Envoy Consumption") {
+		t.Error("Should not have consumption section when consumption is empty")
+	}
+}
+
+func TestFormatEnvoySensors(t *testing.T) {
+	readings := []SensorReading{
+		{MeasurementType: "total-consumption", ActivePower: 850.0, RmsVoltage: 240.1, RmsCurrent: 3.54, Frequency: 60.0, PowerFactor: 0.995},
+	}
+	out := FormatEnvoySensors(readings)
+
+	if !strings.Contains(out, "=== Envoy Sensor Readings") {
+		t.Error("Expected sensor readings header")
+	}
+	if !strings.Contains(out, "total-consumption") {
+		t.Error("Expected measurement type in output")
+	}
+	if !strings.Contains(out, "850.0") {
+		t.Error("Expected active power in output")
+	}
+}
+
+func TestFormatEnvoySensorsEmpty(t *testing.T) {
+	out := FormatEnvoySensors(nil)
+
+	if !strings.Contains(out, "=== Envoy Sensor Readings") {
+		t.Error("Expected sensor readings header even when empty")
+	}
+	if !strings.Contains(out, "No sensor readings found") {
+		t.Error("Expected empty message for nil readings")
+	}
+}
+
+func TestFormatEnvoySensorsEmptySlice(t *testing.T) {
+	out := FormatEnvoySensors([]SensorReading{})
+
+	if !strings.Contains(out, "No sensor readings found") {
+		t.Error("Expected empty message for empty slice")
+	}
+}

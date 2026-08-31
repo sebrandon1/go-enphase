@@ -276,6 +276,48 @@ func FormatMeterData(data []MeterData) string {
 	return b.String()
 }
 
+// FormatEnvoyProduction formats local Envoy production and consumption data as a text table.
+func FormatEnvoyProduction(p *EnvoyProduction) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Envoy Production (%d sources) ===\n\n", len(p.Production))
+	fmt.Fprintf(&b, "  %-12s %6s %10s %12s %14s\n", "TYPE", "COUNT", "NOW (W)", "TODAY (Wh)", "LIFETIME (Wh)")
+	fmt.Fprintf(&b, "  %-12s %6s %10s %12s %14s\n", "------------", "------", "----------", "------------", "--------------")
+	for _, e := range p.Production {
+		fmt.Fprintf(&b, "  %-12s %6d %10.1f %12.1f %14.1f\n", e.Type, e.ActiveCount, e.WNow, e.WhToday, e.WhLifetime)
+	}
+
+	if len(p.Consumption) > 0 {
+		fmt.Fprintf(&b, "\n=== Envoy Consumption (%d sources) ===\n\n", len(p.Consumption))
+		fmt.Fprintf(&b, "  %-12s %-22s %6s %10s %12s\n", "TYPE", "MEASUREMENT", "COUNT", "NOW (W)", "TODAY (Wh)")
+		fmt.Fprintf(&b, "  %-12s %-22s %6s %10s %12s\n", "------------", "----------------------", "------", "----------", "------------")
+		for _, e := range p.Consumption {
+			fmt.Fprintf(&b, "  %-12s %-22s %6d %10.1f %12.1f\n", e.Type, e.MeasurementType, e.ActiveCount, e.WNow, e.WhToday)
+		}
+	}
+
+	return b.String()
+}
+
+// FormatEnvoySensors formats local Envoy sensor readings as a text table.
+func FormatEnvoySensors(readings []SensorReading) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "=== Envoy Sensor Readings (%d) ===\n\n", len(readings))
+	if len(readings) == 0 {
+		b.WriteString("  No sensor readings found.\n")
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %-22s %10s %11s %11s %10s %6s\n", "MEASUREMENT", "ACTIVE (W)", "VOLTAGE (V)", "CURRENT (A)", "FREQ (Hz)", "PF")
+	fmt.Fprintf(&b, "  %-22s %10s %11s %11s %10s %6s\n", "----------------------", "----------", "-----------", "-----------", "----------", "------")
+	for _, r := range readings {
+		fmt.Fprintf(&b, "  %-22s %10.1f %11.1f %11.3f %10.2f %6.3f\n", r.MeasurementType, r.ActivePower, r.RmsVoltage, r.RmsCurrent, r.Frequency, r.PowerFactor)
+	}
+
+	return b.String()
+}
+
 // FormatBatteryStatus formats battery status as human-readable key-value pairs.
 func FormatBatteryStatus(b2 *BatteryStatus) string {
 	var b strings.Builder

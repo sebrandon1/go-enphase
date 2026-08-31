@@ -21,7 +21,11 @@ var envoyStatusCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Error getting envoy status: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(production)
+		if isJSONOutput() {
+			printJSON(production)
+			return
+		}
+		fmt.Print(lib.FormatEnvoyProduction(production))
 	},
 }
 
@@ -35,7 +39,11 @@ var envoySensorsCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Error getting sensors: %v\n", err)
 			os.Exit(1)
 		}
-		printJSON(sensors)
+		if isJSONOutput() {
+			printJSON(sensors)
+			return
+		}
+		fmt.Print(lib.FormatEnvoySensors(sensors))
 	},
 }
 
