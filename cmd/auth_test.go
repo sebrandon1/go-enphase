@@ -19,15 +19,15 @@ func TestAuthStatusFields(t *testing.T) {
 			setup:    func() {},
 			teardown: func() {},
 			want: map[string]bool{
-				"api_key_set":       false,
-				"access_token_set":  false,
-				"refresh_token_set": false,
-				"client_id_set":     false,
-				"client_secret_set": false,
-				"system_id_set":     false,
-				"envoy_ip_set":      false,
-				"envoy_token_set":   false,
-				"envoy_serial_set":  false,
+				statusAPIKeySet:       false,
+				statusAccessTokenSet:  false,
+				statusRefreshTokenSet: false,
+				statusClientIDSet:     false,
+				statusClientSecretSet: false,
+				statusSystemIDSet:     false,
+				statusEnvoyIPSet:      false,
+				statusEnvoyTokenSet:   false,
+				statusEnvoySerialSet:  false,
 			},
 		},
 		{
@@ -43,15 +43,15 @@ func TestAuthStatusFields(t *testing.T) {
 				envoySerial = ""
 			},
 			want: map[string]bool{
-				"api_key_set":       false,
-				"access_token_set":  false,
-				"refresh_token_set": false,
-				"client_id_set":     false,
-				"client_secret_set": false,
-				"system_id_set":     false,
-				"envoy_ip_set":      true,
-				"envoy_token_set":   true,
-				"envoy_serial_set":  true,
+				statusAPIKeySet:       false,
+				statusAccessTokenSet:  false,
+				statusRefreshTokenSet: false,
+				statusClientIDSet:     false,
+				statusClientSecretSet: false,
+				statusSystemIDSet:     false,
+				statusEnvoyIPSet:      true,
+				statusEnvoyTokenSet:   true,
+				statusEnvoySerialSet:  true,
 			},
 		},
 		{
@@ -63,15 +63,15 @@ func TestAuthStatusFields(t *testing.T) {
 				systemID = ""
 			},
 			want: map[string]bool{
-				"api_key_set":       false,
-				"access_token_set":  false,
-				"refresh_token_set": false,
-				"client_id_set":     false,
-				"client_secret_set": false,
-				"system_id_set":     true,
-				"envoy_ip_set":      false,
-				"envoy_token_set":   false,
-				"envoy_serial_set":  false,
+				statusAPIKeySet:       false,
+				statusAccessTokenSet:  false,
+				statusRefreshTokenSet: false,
+				statusClientIDSet:     false,
+				statusClientSecretSet: false,
+				statusSystemIDSet:     true,
+				statusEnvoyIPSet:      false,
+				statusEnvoyTokenSet:   false,
+				statusEnvoySerialSet:  false,
 			},
 		},
 	}
@@ -81,7 +81,6 @@ func TestAuthStatusFields(t *testing.T) {
 			tt.setup()
 			defer tt.teardown()
 
-			// Capture stdout
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
