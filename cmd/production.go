@@ -38,6 +38,14 @@ var energyLifetimeCmd = &cobra.Command{
 	Use:   cmdEnergyLifetime,
 	Short: "Get lifetime energy production history",
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := validateDateFlag("start-date", energyStartDate); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if err := validateDateFlag("end-date", energyEndDate); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		requireSystemID()
 		client := getCloudClient()
 		energy, err := client.GetEnergyLifetime(systemID, energyStartDate, energyEndDate)
@@ -57,6 +65,14 @@ var consumptionCmd = &cobra.Command{
 	Use:   cmdConsumption,
 	Short: "Get lifetime consumption history",
 	Run: func(cmd *cobra.Command, args []string) {
+		if err := validateDateFlag("start-date", consumptionStartDate); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if err := validateDateFlag("end-date", consumptionEndDate); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		requireSystemID()
 		client := getCloudClient()
 		consumption, err := client.GetConsumptionLifetime(systemID, consumptionStartDate, consumptionEndDate)

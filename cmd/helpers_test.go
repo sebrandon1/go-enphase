@@ -158,6 +158,38 @@ func TestOutputFlagWiringOnCommandGroups(t *testing.T) {
 	}
 }
 
+func TestValidateDateFlag(t *testing.T) {
+	tests := []struct {
+		name     string
+		flagName string
+		input    string
+		wantErr  bool
+		errFrag  string
+	}{
+		{"empty string is valid", "start-date", "", false, ""},
+		{"valid date", "start-date", "2024-01-15", false, ""},
+		{"wrong delimiter", "end-date", "01/15/2024", true, "--end-date"},
+		{"no zero-padding", "start-date", "2024-1-5", true, "--start-date"},
+		{"not a date", "end-date", "not-a-date", true, "YYYY-MM-DD"},
+		{"error includes bad value", "start-date", "bad", true, `"bad"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDateFlag(tt.flagName, tt.input)
+			if tt.wantErr && err == nil {
+				t.Errorf("expected error for input %q, got nil", tt.input)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("expected no error for input %q, got %v", tt.input, err)
+			}
+			if tt.wantErr && err != nil && tt.errFrag != "" && !strings.Contains(err.Error(), tt.errFrag) {
+				t.Errorf("error %q should contain %q", err.Error(), tt.errFrag)
+			}
+		})
+	}
+}
+
 func TestPrintJSONOutputIsIndented(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
