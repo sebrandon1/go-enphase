@@ -23,6 +23,10 @@ var authStatusCmd = &cobra.Command{
 			"refresh_token_set": refreshToken != "",
 			"client_id_set":     clientID != "",
 			"client_secret_set": clientSecret != "",
+			"system_id_set":     systemID != "",
+			"envoy_ip_set":      envoyIP != "",
+			"envoy_token_set":   envoyToken != "",
+			"envoy_serial_set":  envoySerial != "",
 		}
 		printJSON(status)
 	},
