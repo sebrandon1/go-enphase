@@ -2,15 +2,18 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	authEmail    string
-	authPassword string
-	saveTokens   bool
+	authEmail         string
+	authPassword      string
+	authPasswordStdin bool
+	saveTokens        bool
 )
 
 const (
@@ -70,8 +73,27 @@ var envoyTokenCmd = &cobra.Command{
 	Use:   cmdEnvoyToken,
 	Short: "Get Envoy JWT token via Enlighten login",
 	Run: func(cmd *cobra.Command, args []string) {
+		if authPassword == "" && !authPasswordStdin {
+			fmt.Fprintln(os.Stderr, "Error: one of --password or --password-stdin is required")
+			os.Exit(1)
+		}
+		if authPassword != "" && authPasswordStdin {
+			fmt.Fprintln(os.Stderr, "Error: --password and --password-stdin are mutually exclusive")
+			os.Exit(1)
+		}
+
+		password := authPassword
+		if authPasswordStdin {
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading password from stdin: %v\n", err)
+				os.Exit(1)
+			}
+			password = strings.TrimRight(string(data), "\r\n")
+		}
+
 		client := getCloudClient()
-		token, err := client.GetEnvoyToken(authEmail, authPassword, envoySerial)
+		token, err := client.GetEnvoyToken(authEmail, password, envoySerial)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting envoy token: %v\n", err)
 			os.Exit(1)
@@ -83,7 +105,9 @@ var envoyTokenCmd = &cobra.Command{
 func init() {
 	authRefreshCmd.Flags().BoolVar(&saveTokens, "save", false, "Save refreshed tokens to config file")
 	envoyTokenCmd.Flags().StringVar(&authEmail, "email", "", "Enlighten account email")
+	_ = envoyTokenCmd.MarkFlagRequired("email")
 	envoyTokenCmd.Flags().StringVar(&authPassword, "password", "", "Enlighten account password")
+	envoyTokenCmd.Flags().BoolVar(&authPasswordStdin, "password-stdin", false, "Read Enlighten password from stdin")
 
 	authCmd.AddCommand(authStatusCmd)
 	authCmd.AddCommand(authRefreshCmd)
