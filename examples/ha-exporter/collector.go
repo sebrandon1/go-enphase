@@ -58,6 +58,15 @@ func NewCollector(cfg *Config, configPath string) (*Collector, error) {
 		}
 	}
 
+	if cloud == nil {
+		Warn("cloud client not configured: set api_key and access_token to enable cloud polling")
+	} else if cfg.SystemID == "" {
+		Warn("cloud client configured but system_id is not set: cloud summary metrics will be skipped")
+	}
+	if envoy == nil {
+		Warn("Envoy client not configured: set envoy_ip to enable local Envoy polling")
+	}
+
 	return &Collector{cfg: cfg, client: cloud, envoy: envoy}, nil
 }
 
