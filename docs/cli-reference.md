@@ -41,8 +41,11 @@ go-enphase auth envoy-token --email user@example.com --password mypass --envoy-s
 ## Report commands
 
 ```bash
-# Today's production summary
+# Today's production summary (live snapshot: current power, energy so far, lifetime total)
 go-enphase report today --system-id 12345
+
+# Day-over-day comparison: today vs yesterday, plus current month stats
+go-enphase report summary --system-id 12345
 
 # Daily report: today's live status + last 7 days production vs consumption
 go-enphase report daily --system-id 12345
@@ -50,11 +53,23 @@ go-enphase report daily --system-id 12345
 # Daily report with custom trailing days
 go-enphase report daily --system-id 12345 --days 14
 
+# Last N complete days with production, consumption, totals, and averages (default 7)
+go-enphase report week --system-id 12345
+
+# Last 14 complete days
+go-enphase report week --system-id 12345 --days 14
+
+# Aggregate stats for the current calendar month
+go-enphase report month --system-id 12345
+
+# Aggregate stats for a specific calendar month
+go-enphase report month --system-id 12345 2025-06
+
 # Compare two months of production
 go-enphase report compare --system-id 12345 2025-01 2025-02
 
 # Export full production/consumption history to JSON
-go-enphase report history --system-id 12345 --output ~/solar/history.json
+go-enphase report history --system-id 12345 --file ~/solar/history.json
 ```
 
 All report commands support `--rate 0.13` to include dollar estimates (also configurable via `ENPHASE_RATE_PER_KWH` in the config file).
