@@ -2,8 +2,10 @@ package lib
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -437,5 +439,56 @@ func TestRetryContextCancel(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("Expected error, got nil")
+	}
+}
+
+func TestFriendlyHTTPError(t *testing.T) {
+	tests := []struct {
+		code     int
+		body     []byte
+		wantFrag string
+	}{
+		{401, nil, "authentication failed"},
+		{422, []byte("bad param"), "invalid request parameters"},
+		{422, []byte("bad param"), "bad param"},
+		{429, nil, "rate limit exceeded"},
+		{500, nil, "enphase server error"},
+		{503, nil, "unexpected status code: 503"},
+	}
+
+	for _, tt := range tests {
+		err := friendlyHTTPError(tt.code, tt.body)
+		if err == nil {
+			t.Errorf("code %d: expected error, got nil", tt.code)
+			continue
+		}
+		if !strings.Contains(err.Error(), tt.wantFrag) {
+			t.Errorf("code %d: error %q should contain %q", tt.code, err.Error(), tt.wantFrag)
+		}
+	}
+}
+
+func TestWithLogger(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient("key", "token")
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	WithLogger(logger)(client)
+
+	var result map[string]any
+	_ = client.cloudGetCtx(context.Background(), server.URL+"/test", &result)
+
+	if !strings.Contains(buf.String(), "http request") {
+		t.Errorf("expected debug log entry, got: %s", buf.String())
 	}
 }

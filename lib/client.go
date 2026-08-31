@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -35,6 +36,30 @@ func WithTimeout(d time.Duration) ClientOption {
 func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) {
 		c.HTTPClient = hc
+	}
+}
+
+// WithLogger attaches a structured logger to the client. When set, each outgoing
+// request and its status code are logged at DEBUG level.
+func WithLogger(l *slog.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = l
+	}
+}
+
+// friendlyHTTPError converts a raw HTTP error status into a human-readable message.
+func friendlyHTTPError(statusCode int, body []byte) error {
+	switch statusCode {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("authentication failed (401): check your API key and access token")
+	case http.StatusUnprocessableEntity:
+		return fmt.Errorf("invalid request parameters (422): %s", strings.TrimSpace(string(body)))
+	case http.StatusTooManyRequests:
+		return fmt.Errorf("rate limit exceeded (429): wait before retrying")
+	case http.StatusInternalServerError:
+		return fmt.Errorf("enphase server error (500): try again later")
+	default:
+		return fmt.Errorf("unexpected status code: %d, response: %s", statusCode, string(body))
 	}
 }
 
@@ -80,6 +105,7 @@ type Client struct {
 	// the new access and refresh tokens, allowing callers to persist them.
 	OnTokenRefresh func(accessToken, refreshToken string)
 
+	logger           *slog.Logger
 	envoyTokenExpiry time.Time
 	envoyTokenMu     sync.Mutex
 	refreshMu        sync.Mutex
@@ -228,9 +254,13 @@ func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
 	}
 	defer drainAndClose(resp.Body)
 
+	if c.logger != nil {
+		c.logger.Debug("http request", "method", req.Method, "url", req.URL.String(), "status", resp.StatusCode)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+		return friendlyHTTPError(resp.StatusCode, body)
 	}
 	return decodeJSON(resp.Body, v)
 }
@@ -271,9 +301,14 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 	}
 
 	defer drainAndClose(resp.Body)
+
+	if c.logger != nil {
+		c.logger.Debug("http request", "method", req.Method, "url", req.URL.String(), "status", resp.StatusCode)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+		return friendlyHTTPError(resp.StatusCode, body)
 	}
 	return decodeJSON(resp.Body, v)
 }
@@ -314,9 +349,14 @@ func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, usernam
 	}
 
 	defer drainAndClose(resp.Body)
+
+	if c.logger != nil {
+		c.logger.Debug("http request", "method", req.Method, "url", req.URL.String(), "status", resp.StatusCode)
+	}
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+		return friendlyHTTPError(resp.StatusCode, body)
 	}
 
 	if v != nil {

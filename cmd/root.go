@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/sebrandon1/go-enphase/lib"
@@ -26,6 +27,8 @@ var (
 	configRatePerKWh    string
 	loadedConfig        *lib.Config
 	configLoadAttempted bool
+
+	verbose bool
 
 	cloudClient *lib.Client
 	localClient *lib.Client
@@ -67,6 +70,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&envoySerial, "envoy-serial", "", "Envoy serial number")
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Config file path (default: ~/.enphase/config)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format: text or json")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Log HTTP requests to stderr")
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(authCmd)
@@ -115,6 +119,9 @@ func getCloudClient() *lib.Client {
 			_ = loadedConfig.SaveTokens(at, rt)
 		}
 	}
+	if verbose {
+		lib.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))(client)
+	}
 	cloudClient = client
 	return client
 }
@@ -127,6 +134,9 @@ func getEnvoyClient() *lib.Client {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating envoy client: %v\n", err)
 		os.Exit(1)
+	}
+	if verbose {
+		lib.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))(client)
 	}
 	localClient = client
 	return client
