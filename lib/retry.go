@@ -5,11 +5,15 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 )
 
-// retryTransport is an http.RoundTripper that retries GET requests on 5xx responses
-// and transient network errors with exponential backoff.
+// maxRetryDelay caps both the exponential backoff and any server-provided Retry-After.
+const maxRetryDelay = 30 * time.Second
+
+// retryTransport is an http.RoundTripper that retries GET requests on 429 and 5xx
+// responses (honoring Retry-After) and transient network errors with exponential backoff.
 type retryTransport struct {
 	inner     http.RoundTripper
 	maxTries  int
@@ -26,23 +30,28 @@ func (rt *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		resp  *http.Response
 		err   error
 		delay = rt.baseDelay
+		wait  = rt.baseDelay
 	)
 
 	for attempt := 0; attempt <= rt.maxTries; attempt++ {
 		if attempt > 0 {
 			select {
-			case <-time.After(delay):
+			case <-time.After(wait):
 			case <-req.Context().Done():
 				return nil, req.Context().Err()
 			}
-			delay = min(delay*2, 30*time.Second)
+			delay = min(delay*2, maxRetryDelay)
+			wait = delay
 		}
 
 		resp, err = rt.inner.RoundTrip(req)
-		if !shouldRetry(resp, err) {
+		if attempt == rt.maxTries || !shouldRetry(resp, err) {
 			return resp, err
 		}
 		if resp != nil {
+			if d, ok := retryAfter(resp); ok {
+				wait = d
+			}
 			drainAndClose(resp.Body)
 		}
 	}
@@ -59,5 +68,18 @@ func shouldRetry(resp *http.Response, err error) bool {
 		var netErr net.Error
 		return errors.As(err, &netErr) && netErr.Timeout()
 	}
-	return resp != nil && resp.StatusCode >= 500
+	return resp != nil && (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500)
+}
+
+// retryAfter parses a Retry-After header given in seconds, capped at maxRetryDelay.
+// HTTP-date values and invalid or negative values are ignored.
+func retryAfter(resp *http.Response) (time.Duration, bool) {
+	if resp == nil {
+		return 0, false
+	}
+	secs, err := strconv.Atoi(resp.Header.Get("Retry-After"))
+	if err != nil || secs < 0 {
+		return 0, false
+	}
+	return min(time.Duration(secs)*time.Second, maxRetryDelay), true
 }
