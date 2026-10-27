@@ -3,7 +3,7 @@ module github.com/sebrandon1/go-enphase
 go 1.27.3
 
 require (
-	github.com/sebrandon1/go-toolbox v0.1.0
+	github.com/sebrandon1/go-toolbox v0.1.1
 	github.com/spf13/cobra v1.10.2
 )
 

@@ -77,7 +77,7 @@ func (c *Collector) Snapshot() Snapshot {
 	return c.snap
 }
 
-// Run starts the polling loop, blocking until ctx is cancelled.
+// Run starts the polling loop, blocking until ctx is canceled.
 func (c *Collector) Run(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
