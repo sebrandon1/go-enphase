@@ -8,14 +8,27 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/httpx"
+	"github.com/sebrandon1/go-toolbox/retry"
 )
 
 func newRetryClient() *http.Client {
-	return &http.Client{Transport: &retryTransport{
-		inner:     http.DefaultTransport,
-		maxTries:  3,
-		baseDelay: time.Millisecond,
-	}}
+	return &http.Client{Transport: http.DefaultTransport}
+}
+
+func doRetry(t *testing.T, client *http.Client, req *http.Request) (*http.Response, error) {
+	t.Helper()
+	return retry.Do(req.Context(), client, req, retryOptions(time.Millisecond)...)
+}
+
+func newGet(t *testing.T, url string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
 }
 
 func TestRetryOn429ThenSuccess(t *testing.T) {
@@ -29,7 +42,7 @@ func TestRetryOn429ThenSuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newRetryClient().Get(srv.URL)
+	resp, err := doRetry(t, newRetryClient(), newGet(t, srv.URL))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -52,7 +65,7 @@ func TestRetryHonorsRetryAfter(t *testing.T) {
 	defer srv.Close()
 
 	start := time.Now()
-	resp, err := newRetryClient().Get(srv.URL)
+	resp, err := doRetry(t, newRetryClient(), newGet(t, srv.URL))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,7 +75,36 @@ func TestRetryHonorsRetryAfter(t *testing.T) {
 	}
 }
 
-func TestRetryExhausted429ReturnsResponse(t *testing.T) {
+func TestRetryRetryAfterCappedAtMaxDelay(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "999")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got time.Duration
+	opts := append(retryOptions(time.Millisecond),
+		retry.WithHTTPOnRetry(func(attempt int, err error, delay time.Duration) {
+			got = delay
+			cancel() // abort the actual wait
+		}),
+	)
+	if _, err := retry.Do(ctx, newRetryClient(), req, opts...); err == nil {
+		t.Fatal("expected context error")
+	}
+	if got != maxRetryDelay {
+		t.Errorf("retry delay = %s, want %s", got, maxRetryDelay)
+	}
+}
+
+func TestRetryExhausted429ReturnsTypedError(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -70,13 +112,19 @@ func TestRetryExhausted429ReturnsResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newRetryClient().Get(srv.URL)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	resp, err := doRetry(t, newRetryClient(), newGet(t, srv.URL))
+	if resp != nil {
+		resp.Body.Close()
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusTooManyRequests || calls.Load() != 4 {
-		t.Errorf("status=%d calls=%d, want 429 and 4", resp.StatusCode, calls.Load())
+	if err == nil {
+		t.Fatal("expected error after retries are exhausted")
+	}
+	var rateErr *httpx.RateLimitError
+	if !errors.As(err, &rateErr) {
+		t.Errorf("error %v is not a RateLimitError", err)
+	}
+	if calls.Load() != maxRetryAttempts {
+		t.Errorf("calls=%d, want %d", calls.Load(), maxRetryAttempts)
 	}
 }
 
@@ -88,7 +136,11 @@ func TestRetryDoesNotRetryPost(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newRetryClient().Post(srv.URL, "text/plain", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := doRetry(t, newRetryClient(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,80 +159,19 @@ func TestRetryContextCancelAbortsWait(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	start := time.Now()
-	resp, err := newRetryClient().Do(req)
+	resp, err := doRetry(t, newRetryClient(), req)
 	if err == nil {
 		resp.Body.Close()
 		t.Fatal("expected context error")
 	}
 	if time.Since(start) > 5*time.Second {
 		t.Errorf("wait was not aborted by context cancel")
-	}
-}
-
-func TestRetryAfterParsing(t *testing.T) {
-	tests := []struct {
-		header string
-		want   time.Duration
-		ok     bool
-	}{
-		{"5", 5 * time.Second, true},
-		{"999", maxRetryDelay, true},
-		{"-1", 0, false},
-		{"abc", 0, false},
-		{"", 0, false},
-		{"0", 0, true},
-	}
-	for _, tt := range tests {
-		resp := &http.Response{Header: http.Header{}}
-		if tt.header != "" {
-			resp.Header.Set("Retry-After", tt.header)
-		}
-		got, ok := retryAfter(resp)
-		if got != tt.want || ok != tt.ok {
-			t.Errorf("retryAfter(%q) = %v,%v want %v,%v", tt.header, got, ok, tt.want, tt.ok)
-		}
-	}
-}
-
-func TestRetryAfterNilResponse(t *testing.T) {
-	if d, ok := retryAfter(nil); ok || d != 0 {
-		t.Errorf("retryAfter(nil) = %v,%v want 0,false", d, ok)
-	}
-}
-
-type timeoutErr struct{}
-
-func (timeoutErr) Error() string   { return "timeout" }
-func (timeoutErr) Timeout() bool   { return true }
-func (timeoutErr) Temporary() bool { return true }
-
-func TestShouldRetry(t *testing.T) {
-	tests := []struct {
-		name string
-		resp *http.Response
-		err  error
-		want bool
-	}{
-		{"200 ok", &http.Response{StatusCode: http.StatusOK}, nil, false},
-		{"404 not found", &http.Response{StatusCode: http.StatusNotFound}, nil, false},
-		{"429 too many requests", &http.Response{StatusCode: http.StatusTooManyRequests}, nil, true},
-		{"500 server error", &http.Response{StatusCode: http.StatusInternalServerError}, nil, true},
-		{"503 unavailable", &http.Response{StatusCode: http.StatusServiceUnavailable}, nil, true},
-		{"network timeout", nil, timeoutErr{}, true},
-		{"context canceled", nil, context.Canceled, false},
-		{"deadline exceeded", nil, context.DeadlineExceeded, false},
-		{"non-timeout error", nil, errors.New("connection refused"), false},
-		{"nil response and error", nil, nil, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := shouldRetry(tt.resp, tt.err); got != tt.want {
-				t.Errorf("shouldRetry() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 
@@ -195,7 +186,7 @@ func TestRetryOn5xxThenSuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newRetryClient().Get(srv.URL)
+	resp, err := doRetry(t, newRetryClient(), newGet(t, srv.URL))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -213,12 +204,72 @@ func TestNoRetryOn4xx(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newRetryClient().Get(srv.URL)
+	resp, err := doRetry(t, newRetryClient(), newGet(t, srv.URL))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	defer resp.Body.Close()
 	if calls.Load() != 1 {
 		t.Errorf("calls=%d, want 1", calls.Load())
+	}
+}
+
+func TestIsRetryableStatus(t *testing.T) {
+	tests := []struct {
+		code int
+		want bool
+	}{
+		{http.StatusOK, false},
+		{http.StatusNotFound, false},
+		{http.StatusTooManyRequests, true},
+		{http.StatusInternalServerError, true},
+		{http.StatusServiceUnavailable, true},
+		{http.StatusBadGateway, true},
+	}
+	for _, tt := range tests {
+		if got := isRetryableStatus(tt.code); got != tt.want {
+			t.Errorf("isRetryableStatus(%d) = %v, want %v", tt.code, got, tt.want)
+		}
+	}
+}
+
+func TestDoGetConvertsRetryExhaustionToFriendlyError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	c := &Client{HTTPClient: newRetryClient()}
+	resp, err := c.doGet(context.Background(), newGet(t, srv.URL))
+	if resp != nil {
+		resp.Body.Close()
+	}
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "rate limit exceeded (429): wait before retrying" {
+		t.Errorf("error = %q, want rate limit message", err.Error())
+	}
+	if !errors.As(err, new(*httpx.RateLimitError)) {
+		t.Errorf("error %v does not wrap RateLimitError", err)
+	}
+}
+
+func TestDoGetReturnsNonRetryableResponse(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	c := &Client{HTTPClient: newRetryClient()}
+	resp, err := c.doGet(context.Background(), newGet(t, srv.URL))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized || calls.Load() != 1 {
+		t.Errorf("status=%d calls=%d, want 401 and 1", resp.StatusCode, calls.Load())
 	}
 }

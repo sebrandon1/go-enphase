@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/httpx"
 )
 
 var (
@@ -47,20 +48,35 @@ func WithLogger(l *slog.Logger) ClientOption {
 	}
 }
 
+// httpStatusError is the user-facing error for an HTTP failure status. It keeps
+// the Enphase-specific message while wrapping the httpx typed error, so callers
+// can still classify it with errors.As / httpx.Is*.
+type httpStatusError struct {
+	msg string
+	err error
+}
+
+func (e *httpStatusError) Error() string { return e.msg }
+func (e *httpStatusError) Unwrap() error { return e.err }
+
 // friendlyHTTPError converts a raw HTTP error status into a human-readable message.
 func friendlyHTTPError(statusCode int, body []byte) error {
-	switch statusCode {
-	case http.StatusUnauthorized:
-		return fmt.Errorf("authentication failed (401): check your API key and access token")
-	case http.StatusUnprocessableEntity:
-		return fmt.Errorf("invalid request parameters (422): %s", strings.TrimSpace(string(body)))
-	case http.StatusTooManyRequests:
-		return fmt.Errorf("rate limit exceeded (429): wait before retrying")
-	case http.StatusInternalServerError:
-		return fmt.Errorf("enphase server error (500): try again later")
+	typed := httpx.CheckStatus(&http.Response{StatusCode: statusCode}, body)
+
+	var msg string
+	switch {
+	case httpx.IsAuthError(typed):
+		msg = "authentication failed (401): check your API key and access token"
+	case httpx.IsValidation(typed):
+		msg = fmt.Sprintf("invalid request parameters (422): %s", strings.TrimSpace(string(body)))
+	case httpx.IsRateLimited(typed):
+		msg = "rate limit exceeded (429): wait before retrying"
+	case statusCode == http.StatusInternalServerError:
+		msg = "enphase server error (500): try again later"
 	default:
-		return fmt.Errorf("unexpected status code: %d, response: %s", statusCode, string(body))
+		msg = fmt.Sprintf("unexpected status code: %d, response: %s", statusCode, string(body))
 	}
+	return &httpStatusError{msg: msg, err: typed}
 }
 
 // WithInsecureSkipVerify controls TLS certificate verification on the underlying transport.
@@ -79,12 +95,7 @@ func WithInsecureSkipVerify(skip bool) ClientOption {
 
 // innerTransport extracts the *http.Transport from a (possibly wrapped) RoundTripper.
 func innerTransport(rt http.RoundTripper) *http.Transport {
-	switch t := rt.(type) {
-	case *retryTransport:
-		if inner, ok := t.inner.(*http.Transport); ok {
-			return inner
-		}
-	case *http.Transport:
+	if t, ok := rt.(*http.Transport); ok {
 		return t
 	}
 	return nil
@@ -112,23 +123,15 @@ type Client struct {
 }
 
 func newHTTPClientWithTLS(insecure bool) *http.Client {
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: 10 * time.Second,
-		}).DialContext,
+	opts := httpx.Options{
+		Timeout:             30 * time.Second,
+		DialTimeout:         10 * time.Second,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
 	if insecure {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+		opts.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
-	return &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &retryTransport{
-			inner:     transport,
-			maxTries:  3,
-			baseDelay: 500 * time.Millisecond,
-		},
-	}
+	return httpx.NewHTTPClient(opts)
 }
 
 // NewClient creates a new Enphase API client for cloud access.
@@ -242,13 +245,13 @@ func (c *Client) cloudGetCtx(ctx context.Context, url string, v any) error {
 }
 
 func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := httpx.NewRequest(ctx, http.MethodGet, url)
 	if err != nil {
 		return err
 	}
 	c.setEnvoyHeaders(req)
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doGet(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -259,22 +262,19 @@ func (c *Client) envoyGetCtx(ctx context.Context, url string, v any) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return friendlyHTTPError(resp.StatusCode, body)
+		return friendlyHTTPError(resp.StatusCode, []byte(httpx.ReadErrorBody(resp.Body, httpx.DefaultMaxErrorBodyBytes)))
 	}
-	return decodeJSON(resp.Body, v)
+	return httpx.DecodeJSON(resp.Body, v)
 }
 
 func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params map[string]string, v any) error {
 	buildReq := func() (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := httpx.NewRequest(ctx, http.MethodGet, url)
 		if err != nil {
 			return nil, err
 		}
 		c.setCloudHeaders(req)
-		if len(params) > 0 {
-			addQueryParams(req, params)
-		}
+		httpx.AddQueryParams(req, params)
 		return req, nil
 	}
 
@@ -283,7 +283,7 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 	if err != nil {
 		return err
 	}
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doGet(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -294,7 +294,7 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 		if err != nil {
 			return err
 		}
-		resp, err = c.HTTPClient.Do(req)
+		resp, err = c.doGet(ctx, req)
 		if err != nil {
 			return err
 		}
@@ -307,10 +307,9 @@ func (c *Client) cloudGetWithParamsCtx(ctx context.Context, url string, params m
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return friendlyHTTPError(resp.StatusCode, body)
+		return friendlyHTTPError(resp.StatusCode, []byte(httpx.ReadErrorBody(resp.Body, httpx.DefaultMaxErrorBodyBytes)))
 	}
-	return decodeJSON(resp.Body, v)
+	return httpx.DecodeJSON(resp.Body, v)
 }
 
 func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, username, password string, v any) error {
@@ -355,12 +354,11 @@ func (c *Client) postFormWithAuthCtx(ctx context.Context, url, formData, usernam
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return friendlyHTTPError(resp.StatusCode, body)
+		return friendlyHTTPError(resp.StatusCode, []byte(httpx.ReadErrorBody(resp.Body, httpx.DefaultMaxErrorBodyBytes)))
 	}
 
 	if v != nil {
-		return decodeJSON(resp.Body, v)
+		return httpx.DecodeJSON(resp.Body, v)
 	}
 	return nil
 }
@@ -413,16 +411,4 @@ func parseJWTExpiry(token string) (time.Time, error) {
 	}
 
 	return time.Unix(claims.Exp, 0), nil
-}
-
-func decodeJSON(r io.Reader, v any) error {
-	return json.NewDecoder(r).Decode(v)
-}
-
-func addQueryParams(req *http.Request, params map[string]string) {
-	q := req.URL.Query()
-	for key, value := range params {
-		q.Add(key, value)
-	}
-	req.URL.RawQuery = q.Encode()
 }

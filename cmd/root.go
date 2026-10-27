@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/sebrandon1/go-enphase/lib"
+	"github.com/sebrandon1/go-toolbox/cobrautil"
+	"github.com/sebrandon1/go-toolbox/confkit"
 	"github.com/spf13/cobra"
 )
 
@@ -35,9 +37,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "go-enphase",
-	Short:   "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
-	Version: Version,
+	Use:   "go-enphase",
+	Short: "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		loadConfigIfAvailable()
 	},
@@ -59,6 +60,8 @@ var envoyCmd = &cobra.Command{
 }
 
 func init() {
+	cobrautil.SetVersion(rootCmd, Version)
+
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "Enphase API key")
 	rootCmd.PersistentFlags().StringVar(&accessToken, "access-token", "", "OAuth2 access token")
 	rootCmd.PersistentFlags().StringVar(&refreshToken, "refresh-token", "", "OAuth2 refresh token")
@@ -75,6 +78,7 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(envoyCmd)
+	rootCmd.AddCommand(cobrautil.NewCompletionCommand(rootCmd, rootCmd.Name()))
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Print the version number",
@@ -197,38 +201,38 @@ func applyConfigFile(cfg *lib.Config) {
 // CLI flags and config file have been applied.
 func applyEnvFallbacks() {
 	if apiKey == "" {
-		apiKey = os.Getenv("ENPHASE_API_KEY")
+		apiKey = confkit.EnvString("ENPHASE_API_KEY", "")
 	}
 	if accessToken == "" {
-		accessToken = os.Getenv("ENPHASE_ACCESS_TOKEN")
+		accessToken = confkit.EnvString("ENPHASE_ACCESS_TOKEN", "")
 	}
 	if refreshToken == "" {
-		refreshToken = os.Getenv("ENPHASE_REFRESH_TOKEN")
+		refreshToken = confkit.EnvString("ENPHASE_REFRESH_TOKEN", "")
 	}
 	if clientID == "" {
-		clientID = os.Getenv("ENPHASE_CLIENT_ID")
+		clientID = confkit.EnvString("ENPHASE_CLIENT_ID", "")
 	}
 	if clientSecret == "" {
-		clientSecret = os.Getenv("ENPHASE_CLIENT_SECRET")
+		clientSecret = confkit.EnvString("ENPHASE_CLIENT_SECRET", "")
 	}
 	if systemID == "" {
-		systemID = os.Getenv("ENPHASE_SYSTEM_ID")
+		systemID = confkit.EnvString("ENPHASE_SYSTEM_ID", "")
 	}
 	if envoyIP == "" {
-		envoyIP = os.Getenv("ENPHASE_ENVOY_IP")
+		envoyIP = confkit.EnvString("ENPHASE_ENVOY_IP", "")
 	}
 	if envoyToken == "" {
-		envoyToken = os.Getenv("ENPHASE_ENVOY_TOKEN")
+		envoyToken = confkit.EnvString("ENPHASE_ENVOY_TOKEN", "")
 	}
 	if envoySerial == "" {
-		envoySerial = os.Getenv("ENPHASE_ENVOY_SERIAL")
+		envoySerial = confkit.EnvString("ENPHASE_ENVOY_SERIAL", "")
 	}
 	if configRatePerKWh == "" {
-		configRatePerKWh = os.Getenv("ENPHASE_RATE_PER_KWH")
+		configRatePerKWh = confkit.EnvString("ENPHASE_RATE_PER_KWH", "")
 	}
 }
 
 // Execute executes the root command.
 func Execute() error {
-	return rootCmd.Execute()
+	return cobrautil.Execute(rootCmd)
 }

@@ -1,11 +1,11 @@
 package lib
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/sebrandon1/go-toolbox/confkit"
 )
 
 const defaultConfigPath = ".enphase/config"
@@ -41,25 +41,9 @@ func LoadConfig(path string) (*Config, error) {
 		path = DefaultConfigPath()
 	}
 
-	f, err := os.Open(path)
+	vars, err := confkit.LoadKV(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open config: %w", err)
-	}
-	defer f.Close()
-
-	vars := map[string]string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if k, v, ok := strings.Cut(line, "="); ok {
-			vars[k] = v
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading config: %w", err)
+		return nil, err
 	}
 
 	// Support ENVOY_IP / ENVOY_TOKEN / ENVOY_SERIAL without the ENPHASE_ prefix
@@ -101,50 +85,14 @@ func (c *Config) SaveTokens(accessToken, refreshToken string) error {
 		path = DefaultConfigPath()
 	}
 
-	input, err := os.ReadFile(path)
-	if err != nil {
+	// Keep the historical behavior of failing when the config file does not
+	// exist (confkit.UpdateKV would create it).
+	if _, err := os.ReadFile(path); err != nil {
 		return fmt.Errorf("cannot read config for update: %w", err)
 	}
 
-	updates := map[string]string{
+	return confkit.UpdateKV(path, map[string]string{
 		"ENPHASE_ACCESS_TOKEN":  accessToken,
 		"ENPHASE_REFRESH_TOKEN": refreshToken,
-	}
-
-	var lines []string
-	seen := map[string]bool{}
-	for _, line := range strings.Split(string(input), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if k, _, ok := strings.Cut(trimmed, "="); ok {
-			if newVal, updating := updates[k]; updating {
-				lines = append(lines, k+"="+newVal)
-				seen[k] = true
-				continue
-			}
-		}
-		lines = append(lines, line)
-	}
-
-	for k, v := range updates {
-		if !seen[k] {
-			lines = append(lines, k+"="+v)
-		}
-	}
-
-	return atomicWriteFile(path, []byte(strings.Join(lines, "\n")))
-}
-
-// atomicWriteFile writes data to path atomically via a sibling tmp file and
-// os.Rename, so a crash mid-write leaves the original file intact.
-func atomicWriteFile(path string, data []byte) error {
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
-		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
-		return fmt.Errorf("write %s: %w", tmp, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
-		return fmt.Errorf("rename %s: %w", tmp, err)
-	}
-	return nil
+	})
 }

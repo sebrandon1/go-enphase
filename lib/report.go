@@ -6,6 +6,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/confkit"
 )
 
 // FormatTodaySummary formats a SystemSummary as human-readable text.
@@ -566,7 +568,7 @@ func WriteHistoryFile(path string, systemID int, ratePerKWh float64, records []H
 	if err != nil {
 		return fmt.Errorf("marshaling history: %w", err)
 	}
-	if err := atomicWriteFile(path, data); err != nil {
+	if err := confkit.AtomicWriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("writing history file: %w", err)
 	}
 	return nil

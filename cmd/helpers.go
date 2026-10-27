@@ -1,15 +1,16 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/cliout"
 )
 
 var outputFormat string
 
-const outputJSON = "json"
+const outputJSON = cliout.FormatJSON
 
 func isJSONOutput() bool {
 	return outputFormat == outputJSON
@@ -32,10 +33,8 @@ func validateDateFlag(flagName, s string) error {
 }
 
 func printJSON(data any) {
-	output, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
+	if err := cliout.PrintJSON(os.Stdout, data); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println(string(output))
 }

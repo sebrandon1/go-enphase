@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+
+	"github.com/sebrandon1/go-toolbox/confkit"
 )
 
 // Config holds all runtime configuration for the ha-exporter.
@@ -29,11 +31,11 @@ type Config struct {
 	MetricsAddr string `json:"metrics_addr"` // e.g. ":9090"
 
 	// MQTT / Home Assistant
-	MQTTBroker      string `json:"mqtt_broker"`        // e.g. "tcp://192.168.1.10:1883"
+	MQTTBroker      string `json:"mqtt_broker"` // e.g. "tcp://192.168.1.10:1883"
 	MQTTUsername    string `json:"mqtt_username"`
 	MQTTPassword    string `json:"mqtt_password"`
-	MQTTTopicPrefix string `json:"mqtt_topic_prefix"`  // e.g. "homeassistant"
-	MQTTClientID    string `json:"mqtt_client_id"`     // unique per broker; defaults to "go-enphase-<serial>"
+	MQTTTopicPrefix string `json:"mqtt_topic_prefix"` // e.g. "homeassistant"
+	MQTTClientID    string `json:"mqtt_client_id"`    // unique per broker; defaults to "go-enphase-<serial>"
 }
 
 // SaveTokens atomically rewrites the config file at path with updated tokens.
@@ -46,14 +48,8 @@ func (c *Config) SaveTokens(path, accessToken, refreshToken string) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
-		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
+	if err := confkit.AtomicWriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write config: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp) //nolint:errcheck // best-effort cleanup
-		return fmt.Errorf("rename config: %w", err)
 	}
 	c.AccessToken = accessToken
 	c.RefreshToken = refreshToken

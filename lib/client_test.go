@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/httpx"
 )
 
 func TestNewClient(t *testing.T) {
@@ -350,7 +352,7 @@ func TestPostFormBadURL(t *testing.T) {
 
 func TestAddQueryParams(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://example.com/test", nil)
-	addQueryParams(req, map[string]string{"start_date": "2024-01-01", "end_date": "2024-12-31"})
+	httpx.AddQueryParams(req, map[string]string{"start_date": "2024-01-01", "end_date": "2024-12-31"})
 
 	query := req.URL.Query()
 	if query.Get("start_date") != "2024-01-01" {
@@ -363,7 +365,7 @@ func TestAddQueryParams(t *testing.T) {
 
 func TestAddQueryParamsEmpty(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://example.com/test", nil)
-	addQueryParams(req, map[string]string{})
+	httpx.AddQueryParams(req, map[string]string{})
 
 	if req.URL.RawQuery != "" {
 		t.Errorf("Expected no query params, got '%s'", req.URL.RawQuery)

@@ -10,8 +10,8 @@ import (
 
 // Snapshot holds a point-in-time view of all collected metrics.
 type Snapshot struct {
-	CurrentPowerW   float64
-	EnergyTodayWh   float64
+	CurrentPowerW    float64
+	EnergyTodayWh    float64
 	EnergyLifetimeWh float64
 	NetPowerW        float64
 	InverterWatts    map[string]float64
