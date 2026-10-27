@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/httpx"
 )
 
 // sseMaxLineBytes is the maximum SSE line the scanner will accept (1 MiB).
@@ -62,7 +64,7 @@ func (c *Client) streamMeterOnce(ctx context.Context, handler func(*StreamMeterE
 	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		body := readLimited(resp.Body)
+		body := httpx.ReadErrorBody(resp.Body, 512)
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
 	}
 
@@ -99,11 +101,4 @@ func (c *Client) newStreamClient() *http.Client {
 		transport = http.DefaultTransport
 	}
 	return &http.Client{Transport: transport}
-}
-
-// readLimited reads up to 512 bytes from a reader for use in error messages.
-func readLimited(r interface{ Read([]byte) (int, error) }) string {
-	buf := make([]byte, 512)
-	n, _ := r.Read(buf)
-	return string(buf[:n])
 }

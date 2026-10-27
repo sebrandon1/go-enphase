@@ -38,14 +38,8 @@ func sseTestServer(t *testing.T, events []string, block <-chan struct{}) *httpte
 func envoyClientForTLSServer(server *httptest.Server) *Client {
 	hostPort := server.Listener.Addr().String()
 	return &Client{
-		EnvoyIP: hostPort,
-		HTTPClient: &http.Client{
-			Transport: &retryTransport{
-				inner:     server.Client().Transport,
-				maxTries:  3,
-				baseDelay: 500 * time.Millisecond,
-			},
-		},
+		EnvoyIP:    hostPort,
+		HTTPClient: &http.Client{Transport: server.Client().Transport},
 	}
 }
 

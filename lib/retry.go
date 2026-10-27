@@ -3,83 +3,66 @@ package lib
 import (
 	"context"
 	"errors"
-	"net"
 	"net/http"
-	"strconv"
 	"time"
+
+	"github.com/sebrandon1/go-toolbox/httpx"
+	"github.com/sebrandon1/go-toolbox/retry"
 )
 
 // maxRetryDelay caps both the exponential backoff and any server-provided Retry-After.
 const maxRetryDelay = 30 * time.Second
 
-// retryTransport is an http.RoundTripper that retries GET requests on 429 and 5xx
-// responses (honoring Retry-After) and transient network errors with exponential backoff.
-type retryTransport struct {
-	inner     http.RoundTripper
-	maxTries  int
-	baseDelay time.Duration
+// maxRetryAttempts is the total number of attempts, including the first.
+const maxRetryAttempts = 4
+
+// retryBaseDelay is the first backoff interval.
+const retryBaseDelay = 500 * time.Millisecond
+
+// isRetryableStatus reports whether an HTTP status warrants a retry.
+func isRetryableStatus(code int) bool {
+	return code == http.StatusTooManyRequests || code >= 500
 }
 
-// RoundTrip implements http.RoundTripper with retry logic for GET requests.
-func (rt *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.Method != http.MethodGet {
-		return rt.inner.RoundTrip(req)
+// noJitter disables backoff jitter, preserving the deterministic delays this
+// client historically used.
+func noJitter(d time.Duration) time.Duration { return d }
+
+// retryOptions returns the retry policy for GET requests: up to four attempts
+// on 429/5xx responses and transport errors, honoring Retry-After, with
+// exponential backoff capped at maxRetryDelay. baseDelay is a parameter so
+// tests can use a short delay.
+func retryOptions(baseDelay time.Duration) []retry.HTTPOption {
+	return []retry.HTTPOption{
+		retry.WithMaxAttempts(maxRetryAttempts),
+		retry.WithBaseDelay(baseDelay),
+		retry.WithHTTPMaxDelay(maxRetryDelay),
+		retry.WithRetryMethods(http.MethodGet),
+		retry.WithRetryStatus(isRetryableStatus),
+		retry.WithJitter(noJitter),
 	}
-
-	var (
-		resp  *http.Response
-		err   error
-		delay = rt.baseDelay
-		wait  = rt.baseDelay
-	)
-
-	for attempt := 0; attempt <= rt.maxTries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-time.After(wait):
-			case <-req.Context().Done():
-				return nil, req.Context().Err()
-			}
-			delay = min(delay*2, maxRetryDelay)
-			wait = delay
-		}
-
-		resp, err = rt.inner.RoundTrip(req)
-		if attempt == rt.maxTries || !shouldRetry(resp, err) {
-			return resp, err
-		}
-		if resp != nil {
-			if d, ok := retryAfter(resp); ok {
-				wait = d
-			}
-			drainAndClose(resp.Body)
-		}
-	}
-
-	return resp, err
 }
 
-// shouldRetry reports whether a response or error warrants a retry.
-func shouldRetry(resp *http.Response, err error) bool {
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return false
-		}
-		var netErr net.Error
-		return errors.As(err, &netErr) && netErr.Timeout()
+// doGet executes a GET request with the retry policy applied. Non-retryable
+// responses are returned for the caller to handle; exhausted retries are
+// converted to the same user-facing errors as any other failed status.
+func (c *Client) doGet(ctx context.Context, req *http.Request) (*http.Response, error) {
+	resp, err := retry.Do(ctx, c.HTTPClient, req, retryOptions(retryBaseDelay)...)
+	if err == nil {
+		return resp, nil
 	}
-	return resp != nil && (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500)
-}
 
-// retryAfter parses a Retry-After header given in seconds, capped at maxRetryDelay.
-// HTTP-date values and invalid or negative values are ignored.
-func retryAfter(resp *http.Response) (time.Duration, bool) {
-	if resp == nil {
-		return 0, false
+	var rateErr *httpx.RateLimitError
+	if errors.As(err, &rateErr) {
+		return nil, friendlyHTTPError(http.StatusTooManyRequests, nil)
 	}
-	secs, err := strconv.Atoi(resp.Header.Get("Retry-After"))
-	if err != nil || secs < 0 {
-		return 0, false
+	var httpErr *httpx.HTTPError
+	if errors.As(err, &httpErr) {
+		return nil, friendlyHTTPError(httpErr.StatusCode, []byte(httpErr.Body))
 	}
-	return min(time.Duration(secs)*time.Second, maxRetryDelay), true
+	var netErr *httpx.NetworkError
+	if errors.As(err, &netErr) {
+		return nil, netErr.Cause
+	}
+	return nil, err
 }
