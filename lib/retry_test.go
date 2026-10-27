@@ -273,3 +273,52 @@ func TestDoGetReturnsNonRetryableResponse(t *testing.T) {
 		t.Errorf("status=%d calls=%d, want 401 and 1", resp.StatusCode, calls.Load())
 	}
 }
+
+func TestDoGetBoundsTheWholeRetrySequence(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	c := &Client{HTTPClient: &http.Client{
+		Timeout:   100 * time.Millisecond,
+		Transport: http.DefaultTransport,
+	}}
+
+	start := time.Now()
+	_, err := c.doGet(context.Background(), newGet(t, srv.URL))
+	if err == nil {
+		t.Fatal("expected the total budget to expire")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("retry sequence took %s; the client timeout should bound the whole sequence", elapsed)
+	}
+	if calls.Load() != 1 {
+		t.Errorf("calls=%d, want 1 (the 500ms backoff should not fit in the 100ms budget)", calls.Load())
+	}
+}
+
+// failingTransport always fails with a non-timeout error.
+type failingTransport struct{ calls atomic.Int32 }
+
+func (f *failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	f.calls.Add(1)
+	return nil, errors.New("connection refused")
+}
+
+func TestDoGetDoesNotRetryNonTimeoutTransportErrors(t *testing.T) {
+	ft := &failingTransport{}
+	c := &Client{HTTPClient: &http.Client{Transport: ft}}
+
+	if _, err := c.doGet(context.Background(), newGet(t, "http://example.invalid")); err == nil {
+		t.Fatal("expected transport error")
+	}
+	if ft.calls.Load() != 1 {
+		t.Errorf("calls=%d, want 1 (non-timeout transport errors are not retried)", ft.calls.Load())
+	}
+}

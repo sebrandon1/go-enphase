@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/sebrandon1/go-enphase v0.0.0
-	github.com/sebrandon1/go-toolbox v0.1.0
+	github.com/sebrandon1/go-toolbox v0.1.1
 )
 
 replace github.com/sebrandon1/go-enphase => ../../
