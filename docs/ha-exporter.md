@@ -48,6 +48,10 @@ go build .
 
 The exporter publishes MQTT auto-discovery messages compatible with the [MQTT integration](https://www.home-assistant.io/integrations/mqtt/). Ensure your HA instance has MQTT configured and the broker address matches your config.
 
+**Broker resilience:** The MQTT connection is non-blocking at startup — the exporter serves `/metrics` immediately even if the broker is down. It retries the connection every 30 s. Discovery messages are published automatically on every successful (re)connection, so a broker restart or one that loses retained messages will trigger a fresh discovery publish without restarting the exporter.
+
+If MQTT is not connected during a state publish cycle, one warning is logged per outage and the publish is skipped until the connection recovers.
+
 ## Prometheus scrape config
 
 ```yaml

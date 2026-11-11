@@ -48,17 +48,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Start MQTT publisher if configured.
+	// Start MQTT publisher if configured. Connection is non-blocking; discovery
+	// is published automatically via OnConnectHandler on each (re)connection.
 	var mqttPub *MQTTPublisher
 	if cfg.MQTTBroker != "" && cfg.EnvoySerial != "" {
 		mqttPub, err = NewMQTTPublisher(cfg.MQTTBroker, cfg.MQTTUsername, cfg.MQTTPassword,
 			cfg.MQTTTopicPrefix, cfg.EnvoySerial, cfg.MQTTClientID)
 		if err != nil {
-			Warn("MQTT unavailable: %v — continuing without MQTT", err)
+			Warn("MQTT setup error: %v — continuing without MQTT", err)
 		} else {
 			defer mqttPub.Disconnect()
-			mqttPub.PublishDiscovery()
-			Info("MQTT discovery published to %s", cfg.MQTTBroker)
 		}
 	}
 
