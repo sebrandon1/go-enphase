@@ -82,4 +82,17 @@ go-enphase envoy status --envoy-ip 192.168.1.100
 
 # Get sensor readings
 go-enphase envoy sensors --envoy-ip 192.168.1.100 --envoy-token $JWT
+
+# Get per-inverter production data
+go-enphase envoy inverters --envoy-ip 192.168.1.100 --envoy-token $JWT
+
+# Get meter configuration
+go-enphase envoy meters --envoy-ip 192.168.1.100 --envoy-token $JWT
+
+# Get latest meter readings
+go-enphase envoy meter-readings --envoy-ip 192.168.1.100 --envoy-token $JWT
+
+# Stream live meter events (press Ctrl+C to stop)
+# Exits 1 with an error message if the token is expired or invalid.
+go-enphase envoy stream --envoy-ip 192.168.1.100 --envoy-token $JWT
 ```

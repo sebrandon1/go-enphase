@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,12 +13,19 @@ import (
 	"github.com/sebrandon1/go-toolbox/httpx"
 )
 
+// ErrStreamUnauthorized is returned and passed to the handler when the Envoy
+// rejects the stream request with 401 or 403. StreamMeter stops retrying on
+// this error.
+var ErrStreamUnauthorized = errors.New("stream: unauthorized (401/403)")
+
 // sseMaxLineBytes is the maximum SSE line the scanner will accept (1 MiB).
 const sseMaxLineBytes = 1 << 20
 
 // StreamMeter connects to the Envoy real-time meter SSE stream at /stream/meter and
 // calls handler for each event. It automatically reconnects with exponential backoff
-// (1s to 60s) on error. The loop runs until ctx is canceled.
+// (1s to 60s) on error; the backoff resets to 1s after a connection that delivers at
+// least one event. On ErrStreamUnauthorized (HTTP 401/403) the handler is called with
+// the error and the loop stops without reconnecting. The loop runs until ctx is canceled.
 func (c *Client) StreamMeter(ctx context.Context, handler func(*StreamMeterEvent, error)) {
 	if c.EnvoyIP == "" {
 		handler(nil, fmt.Errorf("envoy IP is required"))
@@ -29,10 +37,29 @@ func (c *Client) StreamMeter(ctx context.Context, handler func(*StreamMeterEvent
 		if ctx.Err() != nil {
 			return
 		}
-		err := c.streamMeterOnce(ctx, handler)
+
+		gotEvent := false
+		wrapped := func(ev *StreamMeterEvent, err error) {
+			if ev != nil {
+				gotEvent = true
+			}
+			handler(ev, err)
+		}
+
+		err := c.streamMeterOnce(ctx, wrapped)
 		if ctx.Err() != nil {
 			return
 		}
+
+		if errors.Is(err, ErrStreamUnauthorized) {
+			handler(nil, err)
+			return
+		}
+
+		if gotEvent {
+			delay = time.Second
+		}
+
 		if err != nil {
 			handler(nil, fmt.Errorf("stream disconnected, reconnecting in %s: %w", delay, err))
 		}
@@ -63,6 +90,9 @@ func (c *Client) streamMeterOnce(ctx context.Context, handler func(*StreamMeterE
 	}
 	defer drainAndClose(resp.Body)
 
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return ErrStreamUnauthorized
+	}
 	if resp.StatusCode != http.StatusOK {
 		body := httpx.ReadErrorBody(resp.Body, 512)
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)

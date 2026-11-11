@@ -46,17 +46,27 @@ readings, err := envoy.GetMeterReadings()
 ## SSE real-time streaming
 
 ```go
+import "errors"
+
 ctx, cancel := context.WithCancel(context.Background())
 defer cancel()
 
 envoy.StreamMeter(ctx, func(ev *lib.StreamMeterEvent, err error) {
     if err != nil {
+        if errors.Is(err, lib.ErrStreamUnauthorized) {
+            log.Fatal("envoy token expired or invalid")
+        }
         log.Printf("stream error: %v", err)
         return
     }
     fmt.Printf("EID %d: %.1f W at %d\n", ev.EID, ev.ActPower, ev.Timestamp)
 })
 ```
+
+`StreamMeter` reconnects automatically with exponential backoff (1 s → 60 s). The backoff
+resets to 1 s after any connection that delivers at least one event. On HTTP 401 or 403 the
+handler receives `lib.ErrStreamUnauthorized` and the loop stops; no further reconnects are
+attempted.
 
 ## Envoy JWT caching
 

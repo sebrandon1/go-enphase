@@ -3,6 +3,7 @@ package lib
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -201,6 +202,63 @@ func TestStreamMeterLargeEvent(t *testing.T) {
 	}
 	if received[0].EID != 42 || received[0].ActPower != 123.0 {
 		t.Errorf("event fields wrong: got eid=%d activePower=%f", received[0].EID, received[0].ActPower)
+	}
+}
+
+func TestStreamMeterUnauthorized(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		status := status
+		t.Run(fmt.Sprintf("HTTP%d", status), func(t *testing.T) {
+			requests := 0
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+
+			client := envoyClientForTLSServer(server)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			var gotErr error
+			client.StreamMeter(ctx, func(ev *StreamMeterEvent, err error) {
+				if err != nil && gotErr == nil {
+					gotErr = err
+				}
+			})
+
+			if requests != 1 {
+				t.Errorf("expected exactly 1 request, got %d", requests)
+			}
+			if !errors.Is(gotErr, ErrStreamUnauthorized) {
+				t.Errorf("expected ErrStreamUnauthorized, got %v", gotErr)
+			}
+		})
+	}
+}
+
+func TestStreamMeterBackoffReset(t *testing.T) {
+	// Server closes after each event; backoff should reset so we see many reconnects quickly.
+	requests := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		flusher := w.(http.Flusher)
+		fmt.Fprintf(w, "data: {\"eid\":1,\"timestamp\":1000,\"activePower\":1.0}\n\n")
+		flusher.Flush()
+	}))
+	defer server.Close()
+
+	client := envoyClientForTLSServer(server)
+	ctx, cancel := context.WithTimeout(context.Background(), 3500*time.Millisecond)
+	defer cancel()
+
+	client.StreamMeter(ctx, func(ev *StreamMeterEvent, err error) {})
+
+	// With backoff reset to 1s after each event, we expect at least 3 connections in 3.5s.
+	if requests < 3 {
+		t.Errorf("expected at least 3 reconnects (backoff reset), got %d", requests)
 	}
 }
 
