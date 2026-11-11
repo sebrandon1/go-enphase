@@ -5,7 +5,7 @@ go 1.27.0
 toolchain go1.27.4
 
 require (
-	github.com/sebrandon1/go-toolbox v0.1.1
+	github.com/sebrandon1/go-toolbox v0.1.2
 	github.com/spf13/cobra v1.10.2
 )
 
