@@ -52,6 +52,12 @@ The exporter publishes MQTT auto-discovery messages compatible with the [MQTT in
 
 If MQTT is not connected during a state publish cycle, one warning is logged per outage and the publish is skipped until the connection recovers.
 
+## Health check
+
+`GET /healthz` returns `200 OK` while metrics are fresh and `503 Service Unavailable` with body `stale: no successful collection within 2x poll interval` once they age out.
+
+When a poll round fails for one or more sources, the exporter **retains the last known values** for those sources rather than zeroing them. `UpdatedAt` advances only when at least one source succeeds, so a full outage (all sources fail) will eventually trigger the `/healthz` staleness check.
+
 ## Prometheus scrape config
 
 ```yaml
