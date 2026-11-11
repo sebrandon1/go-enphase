@@ -27,6 +27,7 @@ var (
 	configFile   string
 
 	configRatePerKWh    string
+	configTimezone      string
 	loadedConfig        *lib.Config
 	configLoadAttempted bool
 
@@ -197,6 +198,9 @@ func applyConfigFile(cfg *lib.Config) {
 	if configRatePerKWh == "" {
 		configRatePerKWh = cfg.RatePerKWh
 	}
+	if configTimezone == "" {
+		configTimezone = cfg.Timezone
+	}
 }
 
 // applyEnvFallbacks fills in any configuration variables still unset after
@@ -231,6 +235,9 @@ func applyEnvFallbacks() {
 	}
 	if configRatePerKWh == "" {
 		configRatePerKWh = confkit.EnvString("ENPHASE_RATE_PER_KWH", "")
+	}
+	if configTimezone == "" {
+		configTimezone = confkit.EnvString("ENPHASE_TIMEZONE", "")
 	}
 }
 

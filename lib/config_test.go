@@ -18,6 +18,7 @@ ENPHASE_RATE_PER_KWH=0.12
 ENPHASE_CLIENT_ID=client-id
 ENPHASE_CLIENT_SECRET=client-secret
 ENPHASE_REFRESH_TOKEN=refresh-token
+ENPHASE_TIMEZONE=America/Chicago
 `
 	if err := os.WriteFile(configPath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
@@ -36,6 +37,9 @@ ENPHASE_REFRESH_TOKEN=refresh-token
 	}
 	if cfg.RatePerKWh != "0.12" {
 		t.Errorf("Expected RatePerKWh '0.12', got %q", cfg.RatePerKWh)
+	}
+	if cfg.Timezone != "America/Chicago" {
+		t.Errorf("Expected Timezone 'America/Chicago', got %q", cfg.Timezone)
 	}
 }
 

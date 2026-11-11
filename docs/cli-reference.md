@@ -74,6 +74,8 @@ go-enphase report history --system-id 12345 --file ~/solar/history.json
 
 All report commands support `--rate 0.13` to include dollar estimates (also configurable via `ENPHASE_RATE_PER_KWH` in the config file).
 
+All report commands also support `--timezone America/Chicago` (or any IANA zone) to compute "today" and "yesterday" in that zone instead of the host's local time. Also configurable via `ENPHASE_TIMEZONE`.
+
 ## Local Envoy commands
 
 ```bash
