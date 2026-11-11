@@ -256,8 +256,8 @@ func TestLeafCommandsHaveRunFunctions(t *testing.T) {
 
 	for name, c := range leafCmds {
 		t.Run(name, func(t *testing.T) {
-			if c.Run == nil {
-				t.Errorf("Leaf command '%s' should have a Run function", name)
+			if c.Run == nil && c.RunE == nil {
+				t.Errorf("Leaf command '%s' should have a Run or RunE function", name)
 			}
 		})
 	}
@@ -273,8 +273,8 @@ func TestParentCommandsHaveNoRunFunction(t *testing.T) {
 
 	for name, c := range parentCmds {
 		t.Run(name, func(t *testing.T) {
-			if c.Run != nil {
-				t.Errorf("Parent command '%s' should not have a Run function", name)
+			if c.Run != nil || c.RunE != nil {
+				t.Errorf("Parent command '%s' should not have a Run or RunE function", name)
 			}
 		})
 	}

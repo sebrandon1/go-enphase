@@ -120,9 +120,14 @@ var reportTodayCmd = &cobra.Command{
 	Use:   "today",
 	Short: "Today's solar production summary (formatted text)",
 	Long:  "Live snapshot of today's production: current power, energy produced so far, and lifetime total. Does not include yesterday's data or historical comparisons — use 'report summary' for day-over-day comparison.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		today := time.Now().Format("2006-01-02")
@@ -144,8 +149,7 @@ var reportTodayCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
-			os.Exit(1)
+			return fmt.Errorf("error getting summary: %w", errSummary)
 		}
 		var todayConsWh int
 		if errCons == nil && cons != nil && len(cons.Consumption) > 0 {
@@ -172,9 +176,10 @@ var reportTodayCmd = &cobra.Command{
 				out.ValueUSD = prodKWh * ratePerKWh
 			}
 			printJSON(out)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatTodaySummary(summary, todayConsWh, ratePerKWh))
+		return nil
 	},
 }
 
@@ -182,9 +187,14 @@ var reportCompareCmd = &cobra.Command{
 	Use:   "compare [YYYY-MM] [YYYY-MM]",
 	Short: "Compare two months of solar production (formatted text)",
 	Long:  "Compare two calendar months side-by-side: total, daily average, best/worst day. If no months given, compares the two most recent complete months. For a single month's stats use 'report month'. For day-over-day (today vs yesterday) use 'report summary'.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 
 		var monthA, monthB string
 		if len(args) >= 2 {
@@ -195,13 +205,11 @@ var reportCompareCmd = &cobra.Command{
 
 		startA, endA, err := lib.MonthDateRange(monthA)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		startB, endB, err := lib.MonthDateRange(monthB)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 
 		var prodA, prodB *lib.EnergyLifetime
@@ -218,12 +226,10 @@ var reportCompareCmd = &cobra.Command{
 		}()
 		wg.Wait()
 		if errA != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching %s: %v\n", monthA, errA)
-			os.Exit(1)
+			return fmt.Errorf("error fetching %s: %w", monthA, errA)
 		}
 		if errB != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching %s: %v\n", monthB, errB)
-			os.Exit(1)
+			return fmt.Errorf("error fetching %s: %w", monthB, errB)
 		}
 
 		resolveRate()
@@ -234,9 +240,10 @@ var reportCompareCmd = &cobra.Command{
 				MonthB:     compareMonthJSON{Month: monthB, Stats: lib.ComputeMonthStats(prodB.Production)},
 				RatePerKWh: ratePerKWh,
 			})
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatMonthComparison(systemID, monthA, monthB, prodA, prodB, ratePerKWh))
+		return nil
 	},
 }
 
@@ -244,9 +251,14 @@ var reportDailyCmd = &cobra.Command{
 	Use:   "daily",
 	Short: "Daily report with production, consumption, and dollar values",
 	Long:  "Shows today's live production (in progress) alongside a trailing history table of complete days. Includes yesterday's final total. Use --days to control how many trailing days appear (default 7). For a clean complete-days-only table with totals use 'report week'.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		// Compute date range for trailing N days (yesterday back).
@@ -278,12 +290,10 @@ var reportDailyCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
-			os.Exit(1)
+			return fmt.Errorf("error getting summary: %w", errSummary)
 		}
 		if errProd != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", errProd)
 		}
 		if errCons != nil {
 			// Consumption may not be available on all systems; warn but continue.
@@ -305,9 +315,10 @@ var reportDailyCmd = &cobra.Command{
 				out.TodayValueUSD = todayKWh * ratePerKWh
 			}
 			printJSON(out)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatDailyReport(summary, rows, ratePerKWh))
+		return nil
 	},
 }
 
@@ -315,9 +326,14 @@ var reportHistoryCmd = &cobra.Command{
 	Use:   "history",
 	Short: "Export combined production/consumption history to JSON",
 	Long:  "Fetches all available production and consumption data and writes a combined JSON file.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		// Fetch all available data (no date filters = full history).
@@ -338,8 +354,7 @@ var reportHistoryCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", errProd)
 		}
 		if errCons != nil {
 			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
@@ -355,10 +370,10 @@ var reportHistoryCmd = &cobra.Command{
 		}
 
 		if err := lib.WriteHistoryFile(historyOutput, systemIDInt, ratePerKWh, records); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing history: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error writing history: %w", err)
 		}
 		fmt.Printf("Wrote %d records to %s\n", len(records), historyOutput)
+		return nil
 	},
 }
 
@@ -366,9 +381,14 @@ var reportSummaryCmd = &cobra.Command{
 	Use:   cmdSummary,
 	Short: "Day-over-day comparison: today vs yesterday, plus current month stats",
 	Long:  "Answers 'how does today compare to yesterday?' — shows yesterday's final production, today's in-progress total, the kWh/percent change, and current month running statistics (total, daily average, best/worst day). This is the best command for a quick daily check-in.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		now := time.Now()
@@ -404,12 +424,10 @@ var reportSummaryCmd = &cobra.Command{
 		wg.Wait()
 
 		if errSummary != nil {
-			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", errSummary)
-			os.Exit(1)
+			return fmt.Errorf("error getting summary: %w", errSummary)
 		}
 		if errMProd != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errMProd)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", errMProd)
 		}
 
 		// yesterday's production is the last element of the month-range response
@@ -472,9 +490,10 @@ var reportSummaryCmd = &cobra.Command{
 				out.Month = m
 			}
 			printJSON(out)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatSummaryReport(summary, yesterdayProdWh, yesterdayConsWh, todayConsWh, monthProdValues, monthLabel, ratePerKWh))
+		return nil
 	},
 }
 
@@ -482,9 +501,14 @@ var reportWeekCmd = &cobra.Command{
 	Use:   "week",
 	Short: "Last N complete days: production, consumption, totals, and averages",
 	Long:  "Shows a table of the last N complete calendar days (default 7) with production, consumption, and net values, plus totals and averages. Unlike 'report daily', this contains only fully complete days — no in-progress today data. Use --days to change the window.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		yesterday := time.Now().AddDate(0, 0, -1)
@@ -509,8 +533,7 @@ var reportWeekCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", errProd)
 		}
 		if errCons != nil {
 			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
@@ -533,9 +556,10 @@ var reportWeekCmd = &cobra.Command{
 				out.AvgConsKWh = out.TotalConsKWh / n
 			}
 			printJSON(out)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatWeekReport(rows, ratePerKWh))
+		return nil
 	},
 }
 
@@ -543,9 +567,14 @@ var reportMonthCmd = &cobra.Command{
 	Use:   "month [YYYY-MM]",
 	Short: "Aggregate stats for a calendar month: total, average, best/worst day",
 	Long:  "Shows total production, daily average, best day, worst day, and consumption stats for a single calendar month. Defaults to the current month (partial if in progress). For side-by-side comparison of two months use 'report compare'.",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		resolveRate()
 
 		var month string
@@ -557,8 +586,7 @@ var reportMonthCmd = &cobra.Command{
 
 		start, end, err := lib.MonthDateRange(month)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 
 		var prod *lib.EnergyLifetime
@@ -578,8 +606,7 @@ var reportMonthCmd = &cobra.Command{
 		wg.Wait()
 
 		if errProd != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", errProd)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", errProd)
 		}
 		if errCons != nil {
 			fmt.Fprintf(os.Stderr, "Warning: consumption data unavailable: %v\n", errCons)
@@ -607,9 +634,10 @@ var reportMonthCmd = &cobra.Command{
 				}
 			}
 			printJSON(out)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatMonthReport(systemID, month, prod, cons, ratePerKWh))
+		return nil
 	},
 }
 

@@ -85,7 +85,9 @@ func TestAuthStatusFields(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			authStatusCmd.Run(nil, nil)
+			if err := authStatusCmd.RunE(nil, nil); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
 			w.Close()
 			os.Stdout = orig

@@ -31,7 +31,7 @@ const (
 var authStatusCmd = &cobra.Command{
 	Use:   cmdStatus,
 	Short: "Show token status (no secrets displayed)",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		status := map[string]any{
 			statusAPIKeySet:       apiKey != "",
 			statusAccessTokenSet:  accessToken != "",
@@ -44,61 +44,64 @@ var authStatusCmd = &cobra.Command{
 			statusEnvoySerialSet:  envoySerial != "",
 		}
 		printJSON(status)
+		return nil
 	},
 }
 
 var authRefreshCmd = &cobra.Command{
 	Use:   "refresh",
 	Short: "Refresh access token",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		token, err := client.RefreshAccessToken()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error refreshing token: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error refreshing token: %w", err)
 		}
 		if saveTokens && loadedConfig != nil {
 			if err := loadedConfig.SaveTokens(token.AccessToken, token.RefreshToken); err != nil {
-				fmt.Fprintf(os.Stderr, "Error saving tokens: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("error saving tokens: %w", err)
 			}
 			fmt.Println("Token refreshed and saved.")
 		} else {
 			printJSON(token)
 		}
+		return nil
 	},
 }
 
 var envoyTokenCmd = &cobra.Command{
 	Use:   cmdEnvoyToken,
 	Short: "Get Envoy JWT token via Enlighten login",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if authPassword == "" && !authPasswordStdin {
-			fmt.Fprintln(os.Stderr, "Error: one of --password or --password-stdin is required")
-			os.Exit(1)
+			return fmt.Errorf("one of --password or --password-stdin is required")
 		}
 		if authPassword != "" && authPasswordStdin {
-			fmt.Fprintln(os.Stderr, "Error: --password and --password-stdin are mutually exclusive")
-			os.Exit(1)
+			return fmt.Errorf("--password and --password-stdin are mutually exclusive")
 		}
 
 		password := authPassword
 		if authPasswordStdin {
 			data, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading password from stdin: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("error reading password from stdin: %w", err)
 			}
 			password = strings.TrimRight(string(data), "\r\n")
 		}
 
-		client := getCloudClient()
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		token, err := client.GetEnvoyToken(authEmail, password, envoySerial)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting envoy token: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting envoy token: %w", err)
 		}
 		fmt.Println(token)
+		return nil
 	},
 }
 
