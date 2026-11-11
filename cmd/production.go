@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
@@ -18,92 +17,108 @@ var (
 var productionCmd = &cobra.Command{
 	Use:   cmdProduction,
 	Short: "Get production meter readings",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		readings, err := client.GetProductionMeterReadings(systemID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting production: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting production: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(readings)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatMeterReadings(readings))
+		return nil
 	},
 }
 
 var energyLifetimeCmd = &cobra.Command{
 	Use:   cmdEnergyLifetime,
 	Short: "Get lifetime energy production history",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := validateDateFlag("start-date", energyStartDate); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		if err := validateDateFlag("end-date", energyEndDate); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-		requireSystemID()
-		client := getCloudClient()
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		energy, err := client.GetEnergyLifetime(systemID, energyStartDate, energyEndDate)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting energy lifetime: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting energy lifetime: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(energy)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatEnergyLifetime(energy))
+		return nil
 	},
 }
 
 var consumptionCmd = &cobra.Command{
 	Use:   cmdConsumption,
 	Short: "Get lifetime consumption history",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := validateDateFlag("start-date", consumptionStartDate); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		if err := validateDateFlag("end-date", consumptionEndDate); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-		requireSystemID()
-		client := getCloudClient()
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		consumption, err := client.GetConsumptionLifetime(systemID, consumptionStartDate, consumptionEndDate)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting consumption: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(consumption)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatConsumptionLifetime(consumption))
+		return nil
 	},
 }
 
 var batteryCmd = &cobra.Command{
 	Use:   cmdBattery,
 	Short: "Get battery status",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		battery, err := client.GetBatteryStatus(systemID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting battery status: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting battery status: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(battery)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatBatteryStatus(battery))
+		return nil
 	},
 }
 

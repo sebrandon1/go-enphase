@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sebrandon1/go-enphase/lib"
 	"github.com/spf13/cobra"
@@ -11,75 +10,93 @@ import (
 var systemsCmd = &cobra.Command{
 	Use:   cmdSystems,
 	Short: "List all systems",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		systems, err := client.ListSystems()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error listing systems: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error listing systems: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(systems)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatSystems(systems))
+		return nil
 	},
 }
 
 var summaryCmd = &cobra.Command{
 	Use:   cmdSummary,
 	Short: "Get system summary",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		summary, err := client.GetSystemSummary(systemID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting summary: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting summary: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(summary)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatSystemSummary(summary))
+		return nil
 	},
 }
 
 var devicesCmd = &cobra.Command{
 	Use:   cmdDevices,
 	Short: "List devices in a system",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		devices, err := client.ListDevices(systemID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error listing devices: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error listing devices: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(devices)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatDevices(devices))
+		return nil
 	},
 }
 
 var systemCmd = &cobra.Command{
 	Use:   cmdSystem,
 	Short: "Get details for a specific system",
-	Run: func(cmd *cobra.Command, args []string) {
-		requireSystemID()
-		client := getCloudClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireSystemID(); err != nil {
+			return err
+		}
+		client, err := getCloudClient()
+		if err != nil {
+			return err
+		}
 		system, err := client.GetSystem(systemID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting system: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting system: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(system)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatSystem(system))
+		return nil
 	},
 }
 

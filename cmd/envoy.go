@@ -14,98 +14,116 @@ import (
 var envoyStatusCmd = &cobra.Command{
 	Use:   cmdStatus,
 	Short: "Get local Envoy production and consumption",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		production, err := client.GetEnvoyProduction()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting envoy status: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting envoy status: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(production)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatEnvoyProduction(production))
+		return nil
 	},
 }
 
 var envoySensorsCmd = &cobra.Command{
 	Use:   "sensors",
 	Short: "Get local Envoy sensor readings",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		sensors, err := client.GetEnvoySensors()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting sensors: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting sensors: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(sensors)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatEnvoySensors(sensors))
+		return nil
 	},
 }
 
 var envoyInvertersCmd = &cobra.Command{
 	Use:   cmdInverters,
 	Short: "Get per-inverter production data from local Envoy",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		readings, err := client.GetInverterReadings()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting inverter readings: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting inverter readings: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(readings)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatInverterReadings(readings))
+		return nil
 	},
 }
 
 var envoyMetersCmd = &cobra.Command{
 	Use:   cmdMeters,
 	Short: "Get meter configuration from local Envoy",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		configs, err := client.GetMeterConfig()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting meter config: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting meter config: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(configs)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatMeterConfig(configs))
+		return nil
 	},
 }
 
 var envoyMeterReadingsCmd = &cobra.Command{
 	Use:   cmdMeterReadings,
 	Short: "Get latest meter readings from local Envoy",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		data, err := client.GetMeterReadings()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting meter readings: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting meter readings: %w", err)
 		}
 		if isJSONOutput() {
 			printJSON(data)
-			return
+			return nil
 		}
 		fmt.Print(lib.FormatMeterData(data))
+		return nil
 	},
 }
 
 var envoyStreamCmd = &cobra.Command{
 	Use:   cmdStream,
 	Short: "Stream live meter events from local Envoy (press Ctrl+C to stop)",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := getEnvoyClient()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getEnvoyClient()
+		if err != nil {
+			return err
+		}
 		jsonOut := isJSONOutput()
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -121,6 +139,7 @@ var envoyStreamCmd = &cobra.Command{
 			ts := time.Unix(event.Timestamp, 0).Format("2006-01-02 15:04:05")
 			fmt.Printf("%s  eid=%-12d  watts=%8.1f W\n", ts, event.EID, event.ActPower)
 		})
+		return nil
 	},
 }
 

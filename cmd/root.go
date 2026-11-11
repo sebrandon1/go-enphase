@@ -37,8 +37,10 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "go-enphase",
-	Short: "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
+	Use:           "go-enphase",
+	Short:         "Enphase CLI interacts with the Enphase cloud API and local Envoy gateway",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		loadConfigIfAvailable()
 	},
@@ -88,33 +90,34 @@ func init() {
 	})
 }
 
-func requireSystemID() {
+func requireSystemID() error {
 	if systemID != "" {
-		return
+		return nil
 	}
 
-	client := getCloudClient()
+	client, err := getCloudClient()
+	if err != nil {
+		return err
+	}
 	systems, err := client.ListSystems()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: --system-id not provided and failed to list systems: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("--system-id not provided and failed to list systems: %w", err)
 	}
 	if len(systems) == 0 {
-		fmt.Fprintln(os.Stderr, "Error: --system-id not provided and no systems found in account")
-		os.Exit(1)
+		return fmt.Errorf("--system-id not provided and no systems found in account")
 	}
 
 	systemID = fmt.Sprintf("%d", systems[0].SystemID)
+	return nil
 }
 
-func getCloudClient() *lib.Client {
+func getCloudClient() (*lib.Client, error) {
 	if cloudClient != nil {
-		return cloudClient
+		return cloudClient, nil
 	}
 	client, err := lib.NewClientWithRefresh(apiKey, accessToken, refreshToken, clientID, clientSecret)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error creating client: %w", err)
 	}
 	client.OnTokenRefresh = func(at, rt string) {
 		accessToken = at
@@ -127,23 +130,22 @@ func getCloudClient() *lib.Client {
 		lib.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))(client)
 	}
 	cloudClient = client
-	return client
+	return client, nil
 }
 
-func getEnvoyClient() *lib.Client {
+func getEnvoyClient() (*lib.Client, error) {
 	if localClient != nil {
-		return localClient
+		return localClient, nil
 	}
 	client, err := lib.NewEnvoyClient(envoyIP, envoyToken)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating envoy client: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error creating envoy client: %w", err)
 	}
 	if verbose {
 		lib.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))(client)
 	}
 	localClient = client
-	return client
+	return client, nil
 }
 
 // loadConfigIfAvailable loads config from file then falls back to environment

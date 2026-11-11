@@ -1,7 +1,13 @@
 package main
 
-import "github.com/sebrandon1/go-enphase/cmd"
+import (
+	"os"
+
+	"github.com/sebrandon1/go-enphase/cmd"
+)
 
 func main() {
-	_ = cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
