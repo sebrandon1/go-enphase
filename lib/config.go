@@ -24,6 +24,7 @@ type Config struct {
 	EnvoyIP      string
 	EnvoyToken   string
 	EnvoySerial  string
+	Timezone     string
 }
 
 // DefaultConfigPath returns the default config file path (~/.enphase/config).
@@ -74,6 +75,7 @@ func LoadConfig(path string) (*Config, error) {
 		EnvoyIP:      envoyIP,
 		EnvoyToken:   envoyToken,
 		EnvoySerial:  envoySerial,
+		Timezone:     vars["ENPHASE_TIMEZONE"],
 	}, nil
 }
 

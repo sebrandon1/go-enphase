@@ -15,6 +15,7 @@ Default location: `~/.enphase/config` (KEY=VALUE format, one per line, `#` comme
 | `ENPHASE_CLIENT_SECRET` | `ENPHASE_CLIENT_SECRET` | `--client-secret` | OAuth2 client secret |
 | `ENPHASE_SYSTEM_ID` | `ENPHASE_SYSTEM_ID` | `--system-id` | Enphase system ID |
 | `ENPHASE_RATE_PER_KWH` | `ENPHASE_RATE_PER_KWH` | `--rate` | Electricity rate ($/kWh) for reports |
+| `ENPHASE_TIMEZONE` | `ENPHASE_TIMEZONE` | `--timezone` | IANA time zone for report dates (e.g. `America/Chicago`) |
 | `ENPHASE_REDIRECT_URI` | — | — | OAuth2 redirect URI (config file only) |
 | `ENPHASE_ENVOY_IP` | `ENPHASE_ENVOY_IP` | `--envoy-ip` | Local Envoy gateway IP address |
 | `ENPHASE_ENVOY_TOKEN` | `ENPHASE_ENVOY_TOKEN` | `--envoy-token` | Local Envoy JWT token |
