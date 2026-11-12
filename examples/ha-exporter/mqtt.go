@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -22,26 +24,35 @@ const haDiscoveryTemplate = `{
 
 // MQTTPublisher publishes solar metrics to an MQTT broker for Home Assistant discovery.
 type MQTTPublisher struct {
-	client mqtt.Client
-	prefix string
-	serial string
+	client          mqtt.Client
+	prefix          string
+	serial          string
+	disconnectWarn  atomic.Bool // true once a not-connected warning has been logged
 }
 
-// NewMQTTPublisher creates and connects an MQTTPublisher.
+// NewMQTTPublisher creates an MQTTPublisher and begins connecting to the broker.
+// It returns immediately without waiting for the connection to complete; the client
+// will retry every 30 s until it succeeds. PublishDiscovery is called automatically
+// on every successful (re)connection via the OnConnectHandler.
 func NewMQTTPublisher(broker, username, password, prefix, serial, clientID string) (*MQTTPublisher, error) {
+	p := &MQTTPublisher{prefix: prefix, serial: serial}
+
 	opts := mqtt.NewClientOptions().
 		AddBroker(broker).
 		SetClientID(clientID).
 		SetUsername(username).
 		SetPassword(password).
-		SetAutoReconnect(true)
+		SetAutoReconnect(true).
+		SetConnectRetry(true).
+		SetConnectRetryInterval(30 * time.Second).
+		SetOnConnectHandler(func(_ mqtt.Client) {
+			Info("MQTT connected to %s; publishing discovery", broker)
+			p.PublishDiscovery()
+		})
 
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return nil, fmt.Errorf("mqtt connect: %w", token.Error())
-	}
-
-	return &MQTTPublisher{client: client, prefix: prefix, serial: serial}, nil
+	p.client = mqtt.NewClient(opts)
+	p.client.Connect() // non-blocking: retry loop handles the rest
+	return p, nil
 }
 
 // PublishDiscovery sends Home Assistant MQTT auto-discovery config messages.
@@ -70,7 +81,16 @@ func (p *MQTTPublisher) PublishDiscovery() {
 }
 
 // PublishState publishes the current metric values as a JSON state payload.
+// If the client is not connected, it logs a single warning per outage and skips.
 func (p *MQTTPublisher) PublishState(snap Snapshot) {
+	if !p.client.IsConnected() {
+		if p.disconnectWarn.CompareAndSwap(false, true) {
+			Warn("MQTT not connected; skipping state publish until reconnected")
+		}
+		return
+	}
+	p.disconnectWarn.Store(false)
+
 	state := map[string]float64{
 		"current_power_w":    snap.CurrentPowerW,
 		"energy_today_wh":    snap.EnergyTodayWh,
