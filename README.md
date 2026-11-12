@@ -18,7 +18,7 @@ Go CLI and library for the Enphase cloud API (v4) and local Envoy gateway.
 
 ## Prerequisites
 
-- Go 1.26 or later
+- Go 1.27 or later
 
 ## Quick start
 

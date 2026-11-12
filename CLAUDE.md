@@ -6,7 +6,7 @@ go-enphase is a Go CLI tool and library for interacting with the Enphase cloud A
 
 ## Go Version
 
-Go 1.26 (specified in `go.mod`, toolchain go1.26.4)
+Go 1.27 (specified in `go.mod`, toolchain go1.27.4)
 
 ## Dependencies
 
