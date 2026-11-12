@@ -120,9 +120,9 @@ All environment variables / config keys:
 - `ENPHASE_SYSTEM_ID` - Default system ID (auto-detected from first system if omitted)
 - `ENPHASE_REDIRECT_URI` - OAuth2 redirect URI
 - `ENPHASE_RATE_PER_KWH` - Electricity rate for dollar estimates in reports
-- `ENPHASE_ENVOY_IP` - Local Envoy gateway IP address (also accepts `ENVOY_IP`)
-- `ENPHASE_ENVOY_TOKEN` - Local Envoy JWT token (also accepts `ENVOY_TOKEN`)
-- `ENPHASE_ENVOY_SERIAL` - Envoy serial number (also accepts `ENVOY_SERIAL`)
+- `ENPHASE_ENVOY_IP` - Local Envoy gateway IP address (config file also accepts `ENVOY_IP`)
+- `ENPHASE_ENVOY_TOKEN` - Local Envoy JWT token (config file also accepts `ENVOY_TOKEN`)
+- `ENPHASE_ENVOY_SERIAL` - Envoy serial number (config file also accepts `ENVOY_SERIAL`)
 
 Token auto-refresh: when a refresh token, client ID, and client secret are configured, the client automatically refreshes expired access tokens and persists them back to the config file.
 

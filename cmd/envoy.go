@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -127,8 +128,13 @@ var envoyStreamCmd = &cobra.Command{
 		jsonOut := isJSONOutput()
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
+		var streamErr error
 		client.StreamMeter(ctx, func(event *lib.StreamMeterEvent, err error) {
 			if err != nil {
+				if errors.Is(err, lib.ErrStreamUnauthorized) {
+					streamErr = err
+					return
+				}
 				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 				return
 			}
@@ -139,6 +145,9 @@ var envoyStreamCmd = &cobra.Command{
 			ts := time.Unix(event.Timestamp, 0).Format("2006-01-02 15:04:05")
 			fmt.Printf("%s  eid=%-12d  watts=%8.1f W\n", ts, event.EID, event.ActPower)
 		})
+		if streamErr != nil {
+			return streamErr
+		}
 		return nil
 	},
 }
