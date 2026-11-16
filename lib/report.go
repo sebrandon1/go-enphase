@@ -155,6 +155,11 @@ func FormatMonthComparison(systemID, monthA, monthB string, prodA, prodB *Energy
 // MonthDateRange returns the start and end dates for a YYYY-MM month string.
 // The end date is clamped to yesterday if the month extends into the future.
 func MonthDateRange(yearMonth string) (start, end string, err error) {
+	return MonthDateRangeIn(yearMonth, time.Now())
+}
+
+// MonthDateRangeIn is like MonthDateRange but uses now instead of time.Now().
+func MonthDateRangeIn(yearMonth string, now time.Time) (start, end string, err error) {
 	t, err := time.Parse("2006-01", yearMonth)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid month format %q, expected YYYY-MM", yearMonth)
@@ -163,7 +168,7 @@ func MonthDateRange(yearMonth string) (start, end string, err error) {
 	start = t.Format("2006-01-02")
 
 	lastDay := t.AddDate(0, 1, -1)
-	yesterday := time.Now().AddDate(0, 0, -1)
+	yesterday := now.AddDate(0, 0, -1)
 	if lastDay.After(yesterday) {
 		lastDay = yesterday
 	}
@@ -174,7 +179,11 @@ func MonthDateRange(yearMonth string) (start, end string, err error) {
 
 // LastTwoMonths returns the YYYY-MM strings for the two most recent complete months.
 func LastTwoMonths() (twoMonthsAgo, lastMonth string) {
-	now := time.Now()
+	return LastTwoMonthsIn(time.Now())
+}
+
+// LastTwoMonthsIn is like LastTwoMonths but uses now instead of time.Now().
+func LastTwoMonthsIn(now time.Time) (twoMonthsAgo, lastMonth string) {
 	last := now.AddDate(0, -1, 0)
 	twoAgo := now.AddDate(0, -2, 0)
 	return twoAgo.Format("2006-01"), last.Format("2006-01")

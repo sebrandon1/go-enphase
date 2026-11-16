@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFormatTodaySummary(t *testing.T) {
@@ -158,6 +159,36 @@ func TestLastTwoMonths(t *testing.T) {
 	twoAgo, last := LastTwoMonths()
 	if len(twoAgo) != 7 || len(last) != 7 {
 		t.Errorf("Expected YYYY-MM format, got %q and %q", twoAgo, last)
+	}
+}
+
+func TestMonthDateRangeInTimezone(t *testing.T) {
+	// 2026-11-10T02:00Z is 2026-11-09 in America/Chicago (UTC-6).
+	chicago, _ := time.LoadLocation("America/Chicago")
+	now := time.Date(2026, 11, 10, 2, 0, 0, 0, time.UTC).In(chicago)
+
+	// Current month is 2026-11 as seen from Chicago.
+	start, end, err := MonthDateRangeIn("2026-11", now)
+	if err != nil {
+		t.Fatalf("MonthDateRangeIn failed: %v", err)
+	}
+	if start != "2026-11-01" {
+		t.Errorf("start = %s, want 2026-11-01", start)
+	}
+	// Yesterday in Chicago is 2026-11-08, so the future-clamp kicks in.
+	if end != "2026-11-08" {
+		t.Errorf("end = %s, want 2026-11-08", end)
+	}
+}
+
+func TestLastTwoMonthsIn(t *testing.T) {
+	now := time.Date(2026, 11, 10, 2, 0, 0, 0, time.UTC)
+	twoAgo, last := LastTwoMonthsIn(now)
+	if twoAgo != "2026-09" {
+		t.Errorf("twoAgo = %s, want 2026-09", twoAgo)
+	}
+	if last != "2026-10" {
+		t.Errorf("last = %s, want 2026-10", last)
 	}
 }
 

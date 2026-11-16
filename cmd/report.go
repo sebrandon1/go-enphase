@@ -15,6 +15,7 @@ var dailyDays int
 var weekDays int
 var historyOutput string
 var ratePerKWh float64
+var reportTimezone string
 
 type todayJSON struct {
 	SystemID       int     `json:"system_id"`
@@ -130,7 +131,7 @@ var reportTodayCmd = &cobra.Command{
 		}
 		resolveRate()
 
-		today := time.Now().Format("2006-01-02")
+		today := reportNow().Format("2006-01-02")
 
 		var summary *lib.SystemSummary
 		var cons *lib.ConsumptionLifetime
@@ -200,14 +201,14 @@ var reportCompareCmd = &cobra.Command{
 		if len(args) >= 2 {
 			monthA, monthB = args[0], args[1]
 		} else {
-			monthA, monthB = lib.LastTwoMonths()
+			monthA, monthB = lib.LastTwoMonthsIn(reportNow())
 		}
 
-		startA, endA, err := lib.MonthDateRange(monthA)
+		startA, endA, err := lib.MonthDateRangeIn(monthA, reportNow())
 		if err != nil {
 			return err
 		}
-		startB, endB, err := lib.MonthDateRange(monthB)
+		startB, endB, err := lib.MonthDateRangeIn(monthB, reportNow())
 		if err != nil {
 			return err
 		}
@@ -262,7 +263,7 @@ var reportDailyCmd = &cobra.Command{
 		resolveRate()
 
 		// Compute date range for trailing N days (yesterday back).
-		yesterday := time.Now().AddDate(0, 0, -1)
+		yesterday := reportNow().AddDate(0, 0, -1)
 		startDate := yesterday.AddDate(0, 0, -(dailyDays - 1))
 
 		// Fetch summary, production, and consumption concurrently.
@@ -391,7 +392,7 @@ var reportSummaryCmd = &cobra.Command{
 		}
 		resolveRate()
 
-		now := time.Now()
+		now := reportNow()
 		today := now.Format("2006-01-02")
 		yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
 		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
@@ -511,7 +512,7 @@ var reportWeekCmd = &cobra.Command{
 		}
 		resolveRate()
 
-		yesterday := time.Now().AddDate(0, 0, -1)
+		yesterday := reportNow().AddDate(0, 0, -1)
 		startDate := yesterday.AddDate(0, 0, -(weekDays - 1))
 
 		var prod *lib.EnergyLifetime
@@ -581,10 +582,10 @@ var reportMonthCmd = &cobra.Command{
 		if len(args) >= 1 {
 			month = args[0]
 		} else {
-			month = time.Now().Format("2006-01")
+			month = reportNow().Format("2006-01")
 		}
 
-		start, end, err := lib.MonthDateRange(month)
+		start, end, err := lib.MonthDateRangeIn(month, reportNow())
 		if err != nil {
 			return err
 		}
@@ -641,6 +642,25 @@ var reportMonthCmd = &cobra.Command{
 	},
 }
 
+// reportNow returns the current time in the zone set by --timezone / ENPHASE_TIMEZONE.
+// When no zone is configured it returns time.Now() (local time). It exits 1 on an
+// invalid zone name so the error surfaces immediately rather than silently falling back.
+func reportNow() time.Time {
+	tz := reportTimezone
+	if tz == "" {
+		tz = configTimezone
+	}
+	if tz == "" {
+		return time.Now()
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: invalid timezone %q: %v\n", tz, err)
+		os.Exit(1)
+	}
+	return time.Now().In(loc)
+}
+
 func resolveRate() {
 	if ratePerKWh > 0 {
 		return
@@ -654,6 +674,7 @@ func resolveRate() {
 
 func init() {
 	reportCmd.PersistentFlags().Float64Var(&ratePerKWh, "rate", 0, "Electricity rate per kWh (for dollar estimates)")
+	reportCmd.PersistentFlags().StringVar(&reportTimezone, "timezone", "", "IANA time zone for report dates (e.g. America/Chicago); overrides ENPHASE_TIMEZONE")
 
 	reportDailyCmd.Flags().IntVar(&dailyDays, "days", 7, "Number of trailing days to include in the report")
 	reportWeekCmd.Flags().IntVar(&weekDays, "days", 7, "Number of complete days to include in the report")
