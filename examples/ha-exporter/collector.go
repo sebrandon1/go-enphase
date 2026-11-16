@@ -18,6 +18,44 @@ type Snapshot struct {
 	UpdatedAt        time.Time
 }
 
+// collectResult holds the values polled from each source plus per-source success flags.
+type collectResult struct {
+	cloudPower     float64
+	energyToday    float64
+	energyLifetime float64
+	envoyPower     float64
+	netPower       float64
+	inverters      map[string]float64
+	cloudOK        bool
+	envoyOK        bool
+	invertersOK    bool
+}
+
+// mergeSnapshot merges res into prev, copying each source's values only when that source
+// succeeded. UpdatedAt advances only when at least one source succeeded.
+func mergeSnapshot(prev Snapshot, res collectResult, now time.Time) Snapshot {
+	next := prev
+	if res.cloudOK {
+		next.EnergyTodayWh = res.energyToday
+		next.EnergyLifetimeWh = res.energyLifetime
+		// Use cloud power only when Envoy data was not collected this round.
+		if !res.envoyOK {
+			next.CurrentPowerW = res.cloudPower
+		}
+	}
+	if res.envoyOK {
+		next.CurrentPowerW = res.envoyPower
+		next.NetPowerW = res.netPower
+	}
+	if res.invertersOK {
+		next.InverterWatts = res.inverters
+	}
+	if res.cloudOK || res.envoyOK || res.invertersOK {
+		next.UpdatedAt = now
+	}
+	return next
+}
+
 // Collector polls Enphase cloud and local Envoy APIs and maintains a Snapshot.
 type Collector struct {
 	cfg    *Config
@@ -95,14 +133,8 @@ func (c *Collector) Run(ctx context.Context, interval time.Duration) {
 
 func (c *Collector) collect(ctx context.Context) {
 	var wg sync.WaitGroup
-	var (
-		cloudPower     float64
-		energyToday    float64
-		energyLifetime float64
-		envoyPower     float64
-		netPower       float64
-		inverters      map[string]float64
-	)
+	var mu sync.Mutex
+	var res collectResult
 
 	if c.client != nil && c.cfg.SystemID != "" {
 		wg.Add(1)
@@ -113,9 +145,12 @@ func (c *Collector) collect(ctx context.Context) {
 				Warn("cloud summary error: %v", err)
 				return
 			}
-			cloudPower = float64(summary.CurrentPower)
-			energyToday = float64(summary.EnergyToday)
-			energyLifetime = float64(summary.EnergyLifetime)
+			mu.Lock()
+			res.cloudPower = float64(summary.CurrentPower)
+			res.energyToday = float64(summary.EnergyToday)
+			res.energyLifetime = float64(summary.EnergyLifetime)
+			res.cloudOK = true
+			mu.Unlock()
 		}()
 	}
 
@@ -128,6 +163,7 @@ func (c *Collector) collect(ctx context.Context) {
 				Warn("envoy production error: %v", err)
 				return
 			}
+			var envoyPower, netPower float64
 			for _, p := range prod.Production {
 				if p.Type == "inverters" {
 					envoyPower = p.WNow
@@ -138,6 +174,11 @@ func (c *Collector) collect(ctx context.Context) {
 					netPower = envoyPower - cons.WNow
 				}
 			}
+			mu.Lock()
+			res.envoyPower = envoyPower
+			res.netPower = netPower
+			res.envoyOK = true
+			mu.Unlock()
 		}()
 
 		wg.Add(1)
@@ -152,28 +193,23 @@ func (c *Collector) collect(ctx context.Context) {
 			for _, inv := range readings {
 				m[inv.SerialNumber] = float64(inv.LastReportWatts)
 			}
-			inverters = m
+			mu.Lock()
+			res.inverters = m
+			res.invertersOK = true
+			mu.Unlock()
 		}()
 	}
 
 	wg.Wait()
 
-	// Prefer real-time Envoy data over the cloud summary when available.
-	currentPower := cloudPower
-	if envoyPower > 0 {
-		currentPower = envoyPower
-	}
-
 	c.mu.Lock()
-	c.snap = Snapshot{
-		CurrentPowerW:    currentPower,
-		EnergyTodayWh:    energyToday,
-		EnergyLifetimeWh: energyLifetime,
-		NetPowerW:        netPower,
-		InverterWatts:    inverters,
-		UpdatedAt:        time.Now(),
-	}
+	prev := c.snap
+	c.snap = mergeSnapshot(prev, res, time.Now())
 	c.mu.Unlock()
 
-	Info("collected: %.0f W current, %.0f Wh today", currentPower, energyToday)
+	if res.cloudOK || res.envoyOK || res.invertersOK {
+		Info("collected: %.0f W current, %.0f Wh today", c.snap.CurrentPowerW, c.snap.EnergyTodayWh)
+	} else {
+		Warn("all sources failed; retaining last known values")
+	}
 }
